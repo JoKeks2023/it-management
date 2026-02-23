@@ -46,7 +46,8 @@ function fileFilter(_req, file, cb) {
   if (ALLOWED_MIME_TYPES.has(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error(`File type "${file.mimetype}" is not allowed`), false);
+    // In multer v2 the boolean second argument is dropped when passing an error
+    cb(new Error(`File type "${file.mimetype}" is not allowed`));
   }
 }
 
