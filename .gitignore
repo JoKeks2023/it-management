@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Environment files (contain secrets)
+.env
+.env.local
+.env.production
+
+# SQLite database files
+*.db
+*.sqlite
+*.sqlite3
+# SQLite WAL/SHM temp files
+*-shm
+*-wal
+# SQLite :memory: test artifact (better-sqlite3 with :memory: path)
+backend/:memory:
+backend/:memory:-shm
+backend/:memory:-wal
+
+# Uploaded files
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
