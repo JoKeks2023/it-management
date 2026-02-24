@@ -9,7 +9,6 @@
 
 const express = require('express');
 const router = express.Router();
-const fetch = require('node-fetch');
 
 // Build Shelf API base URL and headers from environment variables
 function getShelfConfig() {
