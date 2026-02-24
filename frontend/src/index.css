@@ -157,3 +157,25 @@ a:hover { text-decoration: underline; }
 .badge-Firewall      { background: #fee2e2; color: #b91c1c; }
 .badge-Server        { background: #f3e8ff; color: #7c3aed; }
 .badge-Sonstiges     { background: #f1f5f9; color: #64748b; }
+
+/* Contact type badges */
+.badge-Kunde         { background: #dbeafe; color: #1d4ed8; }
+.badge-Veranstalter  { background: #f3e8ff; color: #7c3aed; }
+.badge-Lieferant     { background: #fef3c7; color: #b45309; }
+.badge-Techniker     { background: #ecfdf5; color: #065f46; }
+
+/* ─── Calendar ───────────────────────────────────────────────────────────── */
+.calendar-wrap { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+.calendar-nav { display: flex; align-items: center; gap: .5rem; padding: .75rem 1rem; border-bottom: 1px solid var(--color-border); }
+.calendar-title { font-weight: 600; font-size: .95rem; flex: 1; text-align: center; }
+.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+.calendar-weekday { text-align: center; font-size: .72rem; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; padding: .4rem 0; background: var(--color-surface-hover); border-bottom: 1px solid var(--color-border); }
+.calendar-cell { min-height: 90px; padding: .35rem .4rem; border-right: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); vertical-align: top; }
+.calendar-cell:nth-child(7n) { border-right: none; }
+.calendar-cell--empty { background: var(--color-bg); }
+.calendar-cell--today { background: #eff6ff; }
+.calendar-day-num { display: inline-block; font-size: .78rem; font-weight: 500; color: var(--color-text-muted); margin-bottom: .2rem; }
+.calendar-day-num--today { background: var(--color-primary); color: #fff; border-radius: 50%; width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; }
+.calendar-event-pill { background: var(--color-primary); color: #fff; font-size: .7rem; padding: .1rem .35rem; border-radius: 4px; margin-bottom: .15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; transition: opacity .1s; }
+.calendar-event-pill:hover { opacity: .85; }
+.calendar-more { font-size: .68rem; color: var(--color-text-muted); }

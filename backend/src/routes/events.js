@@ -49,6 +49,10 @@ function loadFullEvent(id) {
     'SELECT * FROM event_equipment WHERE event_id = ?'
   ).all(id);
 
+  event.crew = db.prepare(
+    'SELECT * FROM event_crew WHERE event_id = ?'
+  ).all(id);
+
   event.attachments = db.prepare(
     `SELECT id, event_id, filename, mime_type, size, uploaded_at
      FROM attachments WHERE event_id = ?`
@@ -422,6 +426,66 @@ router.delete('/:id/attachments/:attId', (req, res) => {
   db.prepare('DELETE FROM attachments WHERE id = ?').run(attId);
   logHistory(eventId, 'attachment_removed', `Datei "${att.filename}" entfernt`);
   res.json({ message: 'Attachment deleted successfully' });
+});
+
+// ---------------------------------------------------------------------------
+// POST /events/:id/crew  – add a crew member
+// ---------------------------------------------------------------------------
+router.post('/:id/crew', (req, res) => {
+  const eventId = req.params.id;
+  const event = db.prepare('SELECT id FROM events WHERE id = ?').get(eventId);
+  if (!event) return res.status(404).json({ error: 'Event not found' });
+
+  const { name, role, contact_id, confirmed = false } = req.body;
+  if (!name || name.trim() === '')
+    return res.status(400).json({ error: 'name is required' });
+
+  const result = db.prepare(
+    'INSERT INTO event_crew (event_id, name, role, contact_id, confirmed) VALUES (?, ?, ?, ?, ?)'
+  ).run(eventId, name.trim(), role || null, contact_id || null, confirmed ? 1 : 0);
+
+  logHistory(eventId, 'crew_added', `"${name.trim()}" als ${role || 'Crew'} hinzugefügt`);
+  res.status(201).json(db.prepare('SELECT * FROM event_crew WHERE id = ?').get(result.lastInsertRowid));
+});
+
+// ---------------------------------------------------------------------------
+// PUT /events/:id/crew/:crewId  – update a crew member
+// ---------------------------------------------------------------------------
+router.put('/:id/crew/:crewId', (req, res) => {
+  const { id: eventId, crewId } = req.params;
+  const member = db.prepare('SELECT * FROM event_crew WHERE id = ? AND event_id = ?').get(crewId, eventId);
+  if (!member) return res.status(404).json({ error: 'Crew member not found' });
+
+  const { name, role, contact_id, confirmed } = req.body;
+  db.prepare(
+    `UPDATE event_crew SET name = ?, role = ?, contact_id = ?, confirmed = ? WHERE id = ?`
+  ).run(
+    name      !== undefined ? name.trim()        : member.name,
+    role      !== undefined ? role               : member.role,
+    contact_id !== undefined ? (contact_id || null) : member.contact_id,
+    confirmed !== undefined ? (confirmed ? 1 : 0) : member.confirmed,
+    crewId
+  );
+
+  if (confirmed !== undefined) {
+    logHistory(eventId, 'crew_updated',
+      `"${member.name}" ${confirmed ? 'bestätigt' : 'Bestätigung zurückgenommen'}`);
+  }
+
+  res.json(db.prepare('SELECT * FROM event_crew WHERE id = ?').get(crewId));
+});
+
+// ---------------------------------------------------------------------------
+// DELETE /events/:id/crew/:crewId  – remove a crew member
+// ---------------------------------------------------------------------------
+router.delete('/:id/crew/:crewId', (req, res) => {
+  const { id: eventId, crewId } = req.params;
+  const member = db.prepare('SELECT * FROM event_crew WHERE id = ? AND event_id = ?').get(crewId, eventId);
+  if (!member) return res.status(404).json({ error: 'Crew member not found' });
+
+  db.prepare('DELETE FROM event_crew WHERE id = ?').run(crewId);
+  logHistory(eventId, 'crew_removed', `"${member.name}" aus dem Crew entfernt`);
+  res.json({ message: 'Crew member removed' });
 });
 
 module.exports = router;

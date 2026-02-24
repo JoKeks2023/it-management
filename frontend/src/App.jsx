@@ -1,16 +1,18 @@
 // src/App.jsx
 // Root application component with tab navigation:
-//   Tickets | Events | Netzwerk
+//   Tickets | Events | Kontakte | Netzwerk
 
 import { useState } from 'react';
 import { Dashboard }        from './pages/Dashboard';
 import { EventsDashboard }  from './pages/EventsDashboard';
 import { NetworkDashboard } from './pages/NetworkDashboard';
+import { ContactsPage }     from './pages/ContactsPage';
 
 const TABS = [
-  { id: 'tickets', label: '🎫 Tickets' },
-  { id: 'events',  label: '🎵 Events'  },
-  { id: 'network', label: '🌐 Netzwerk' }
+  { id: 'tickets',  label: '🎫 Tickets'  },
+  { id: 'events',   label: '🎵 Events'   },
+  { id: 'contacts', label: '👥 Kontakte' },
+  { id: 'network',  label: '🌐 Netzwerk' }
 ];
 
 export default function App() {
@@ -36,9 +38,10 @@ export default function App() {
         </span>
       </header>
       <main className="app-main">
-        {activeTab === 'tickets' && <Dashboard />}
-        {activeTab === 'events'  && <EventsDashboard />}
-        {activeTab === 'network' && <NetworkDashboard />}
+        {activeTab === 'tickets'  && <Dashboard />}
+        {activeTab === 'events'   && <EventsDashboard />}
+        {activeTab === 'contacts' && <ContactsPage />}
+        {activeTab === 'network'  && <NetworkDashboard />}
       </main>
     </div>
   );

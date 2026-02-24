@@ -3,7 +3,7 @@
 // equipment reservation management, file attachments, and change history.
 
 import { useState, useEffect, useRef } from 'react';
-import { eventsApi } from '../services/api';
+import { eventsApi, contactsApi } from '../services/api';
 import { StatusBadge } from './StatusBadge';
 import { EventForm } from './EventForm';
 
@@ -28,6 +28,8 @@ export function EventDetail({ eventId, onClose, onUpdated }) {
   const [error,   setError]   = useState('');
   const [showEdit, setShowEdit] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [newCrew, setNewCrew] = useState({ name: '', role: '' });
+  const [addingCrew, setAddingCrew] = useState(false);
   const fileRef = useRef(null);
 
   const load = async () => {
@@ -101,6 +103,32 @@ export function EventDetail({ eventId, onClose, onUpdated }) {
     setShowEdit(false);
     onUpdated && onUpdated(updated);
     eventsApi.history(eventId).then(setHistory);
+  };
+
+  const handleAddCrew = async (e) => {
+    e.preventDefault();
+    if (!newCrew.name.trim()) return;
+    setAddingCrew(true);
+    try {
+      const member = await contactsApi.addCrew(eventId, newCrew);
+      setEvent(ev => ({ ...ev, crew: [...(ev.crew || []), member] }));
+      setNewCrew({ name: '', role: '' });
+    } catch (err) { alert('Fehler: ' + err.message); }
+    finally { setAddingCrew(false); }
+  };
+
+  const handleToggleCrewConfirmed = async (member) => {
+    try {
+      const updated = await contactsApi.updateCrew(eventId, member.id, { confirmed: !member.confirmed });
+      setEvent(ev => ({ ...ev, crew: ev.crew.map(m => m.id === member.id ? updated : m) }));
+    } catch (err) { alert('Fehler: ' + err.message); }
+  };
+
+  const handleRemoveCrew = async (memberId) => {
+    try {
+      await contactsApi.deleteCrew(eventId, memberId);
+      setEvent(ev => ({ ...ev, crew: ev.crew.filter(m => m.id !== memberId) }));
+    } catch (err) { alert('Fehler: ' + err.message); }
   };
 
   if (loading) {
@@ -177,6 +205,41 @@ export function EventDetail({ eventId, onClose, onUpdated }) {
                       ))}
                     </ul>
                   ) : <p className="text-muted">Kein Equipment eingetragen</p>}
+                </div>
+
+                {/* Crew */}
+                <div>
+                  <p className="section-title">Crew / Personal</p>
+                  {event.crew && event.crew.length > 0 ? (
+                    <ul className="materials-list" style={{ marginBottom: '.75rem' }}>
+                      {event.crew.map(m => (
+                        <li key={m.id} className={`material-item${m.confirmed ? ' done' : ''}`}>
+                          <span style={{ flex: 1 }}>
+                            <strong>{m.name}</strong>
+                            {m.role && <span className="text-muted"> · {m.role}</span>}
+                          </span>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '.3rem', fontSize: '.8rem', cursor: 'pointer' }}>
+                            <input type="checkbox" checked={!!m.confirmed}
+                              onChange={() => handleToggleCrewConfirmed(m)} />
+                            Bestätigt
+                          </label>
+                          <button className="btn btn-ghost btn-sm"
+                            onClick={() => handleRemoveCrew(m.id)} aria-label="Entfernen">✕</button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : <p className="text-muted" style={{ marginBottom: '.75rem' }}>Noch keine Crew eingeteilt</p>}
+                  <form onSubmit={handleAddCrew} style={{ display: 'flex', gap: '.4rem', flexWrap: 'wrap' }}>
+                    <input className="form-input" style={{ maxWidth: 180 }}
+                      placeholder="Name" value={newCrew.name}
+                      onChange={e => setNewCrew(c => ({ ...c, name: e.target.value }))} />
+                    <input className="form-input" style={{ maxWidth: 140 }}
+                      placeholder="Rolle (z.B. DJ)" value={newCrew.role}
+                      onChange={e => setNewCrew(c => ({ ...c, role: e.target.value }))} />
+                    <button type="submit" className="btn btn-ghost btn-sm" disabled={addingCrew}>
+                      + Hinzufügen
+                    </button>
+                  </form>
                 </div>
 
                 {/* Materials needed */}

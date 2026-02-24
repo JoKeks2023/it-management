@@ -145,6 +145,62 @@ export const eventsApi = {
 };
 
 // ---------------------------------------------------------------------------
+// Contacts / CRM
+// ---------------------------------------------------------------------------
+export const contactsApi = {
+  /** List contacts with optional filters: { contact_type, search } */
+  list: (filters = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([k, v]) => { if (v) params.append(k, v); });
+    const query = params.toString() ? `?${params}` : '';
+    return fetch(`${BASE_URL}/contacts${query}`).then(handleResponse);
+  },
+
+  /** Get a single contact */
+  get: (id) => fetch(`${BASE_URL}/contacts/${id}`).then(handleResponse),
+
+  /** Create a contact */
+  create: (data) =>
+    fetch(`${BASE_URL}/contacts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).then(handleResponse),
+
+  /** Update a contact */
+  update: (id, data) =>
+    fetch(`${BASE_URL}/contacts/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).then(handleResponse),
+
+  /** Delete a contact */
+  delete: (id) =>
+    fetch(`${BASE_URL}/contacts/${id}`, { method: 'DELETE' }).then(handleResponse),
+
+  /** Add a crew member to an event */
+  addCrew: (eventId, data) =>
+    fetch(`${BASE_URL}/events/${eventId}/crew`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).then(handleResponse),
+
+  /** Update a crew member */
+  updateCrew: (eventId, crewId, data) =>
+    fetch(`${BASE_URL}/events/${eventId}/crew/${crewId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).then(handleResponse),
+
+  /** Remove a crew member from an event */
+  deleteCrew: (eventId, crewId) =>
+    fetch(`${BASE_URL}/events/${eventId}/crew/${crewId}`, { method: 'DELETE' }).then(handleResponse)
+};
+
+// ---------------------------------------------------------------------------
 // Network
 // ---------------------------------------------------------------------------
 export const networkApi = {

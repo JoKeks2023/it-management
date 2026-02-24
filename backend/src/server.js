@@ -13,6 +13,7 @@ const ticketRoutes = require('./routes/tickets');
 const assetRoutes  = require('./routes/assets');
 const eventRoutes  = require('./routes/events');
 const networkRoutes = require('./routes/network');
+const contactRoutes = require('./routes/contacts');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -65,6 +66,7 @@ app.use('/tickets', apiLimiter);
 app.use('/assets',  apiLimiter);
 app.use('/events',  apiLimiter);
 app.use('/network', apiLimiter);
+app.use('/contacts', apiLimiter);
 app.use('/tickets/:id/attachments', uploadLimiter);
 app.use('/events/:id/attachments',  uploadLimiter);
 
@@ -82,6 +84,7 @@ app.use('/tickets', ticketRoutes);
 app.use('/assets',  assetRoutes);
 app.use('/events',  eventRoutes);
 app.use('/network', networkRoutes);
+app.use('/contacts', contactRoutes);
 
 // Health-check endpoint
 app.get('/health', (_req, res) => {

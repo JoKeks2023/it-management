@@ -211,6 +211,43 @@ function initializeDatabase() {
                             CHECK(status IN ('aktiv','inaktiv','reserviert')),
       notes                 TEXT
     );
+
+    -- ================================================================
+    -- CONTACTS / CRM MODULE
+    -- Client, organiser, supplier, and crew member contacts.
+    -- ================================================================
+
+    -- ----------------------------------------------------------------
+    -- contacts table
+    -- Central address book / CRM for all persons and companies.
+    -- ----------------------------------------------------------------
+    CREATE TABLE IF NOT EXISTS contacts (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      name         TEXT    NOT NULL,
+      company      TEXT,
+      email        TEXT,
+      phone        TEXT,
+      address      TEXT,
+      contact_type TEXT    NOT NULL DEFAULT 'Kunde'
+                           CHECK(contact_type IN ('Kunde','Veranstalter','Lieferant','Techniker','Sonstiges')),
+      notes        TEXT,
+      created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+      updated_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
+    -- ----------------------------------------------------------------
+    -- event_crew table
+    -- Staff / crew members assigned to a specific event.
+    -- contact_id is optional – crew can also be entered as free text.
+    -- ----------------------------------------------------------------
+    CREATE TABLE IF NOT EXISTS event_crew (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      event_id    INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+      name        TEXT    NOT NULL,
+      role        TEXT,               -- e.g. 'DJ', 'Techniker', 'Aufbau', 'Abbau'
+      contact_id  INTEGER REFERENCES contacts(id) ON DELETE SET NULL,
+      confirmed   INTEGER NOT NULL DEFAULT 0  -- 0 = angefragt, 1 = bestätigt
+    );
   `);
 }
 
