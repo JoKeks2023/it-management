@@ -2,6 +2,12 @@
 
 Persönliches Ticket- und Asset-Management-System für IT-Projekte und Infrastruktur.
 
+> **Yes — the project has both a frontend and a backend:**
+> - **`backend/`** – Node.js + Express REST API with a local SQLite database
+> - **`frontend/`** – React (Vite) single-page app that talks to the backend API
+
+---
+
 ## Stack
 
 | Layer    | Technologie                                      |
