@@ -17,6 +17,8 @@
 9. [Deployment auf Raspberry Pi / Proxmox](#9-deployment-auf-raspberry-pi--proxmox)
 10. [Neue Features hinzufügen](#10-neue-features-hinzufügen)
 11. [Sicherheitshinweise](#11-sicherheitshinweise)
+12. [Events-Modul](#12-events-modul)
+13. [Netzwerk-Modul](#13-netzwerk-modul)
 
 ---
 
@@ -757,6 +759,353 @@ import QRCode from 'qrcode.react';
 - **Dateinamen** – auf Disk werden UUID-basierte Namen verwendet (kein Path Traversal möglich).
 - **SQLite-Injection** – alle Datenbankzugriffe nutzen Prepared Statements (kein SQL Injection möglich).
 - **Shelf API Token** – wird nur server-seitig verwendet, nie an den Browser gesendet.
+
+---
+
+## 12. Events-Modul
+
+### Überblick
+
+Das Events-Modul erweitert das System um DJ-Bookings und Technik-Events. Events sind ähnlich wie Tickets, haben aber spezielle Felder für Veranstaltungsmanagement.
+
+### Unterschiede: Tickets vs Events
+
+| Merkmal             | Tickets (IT)                              | Events (DJ/Technik)                        |
+|---------------------|-------------------------------------------|--------------------------------------------|
+| Zweck               | IT-Projekte, Infrastruktur-Aufgaben       | DJ-Bookings, Technik-Events, Netzwerk-Setup |
+| Status-Flow         | geplant → bestellt → installiert → fertig | angefragt → bestätigt → vorbereitet → durchgeführt → abgeschlossen |
+| Priorität           | hoch / mittel / niedrig                   | –                                          |
+| Materialien         | Strukturierte Liste mit Checkboxen        | Freitext `materials_needed`                |
+| Equipment           | Asset-IDs aus Shelf                       | Equipment-Liste mit Reservierungsstatus    |
+| Finanzen            | –                                         | `price_estimate` + `payment_status`        |
+| Datum/Uhrzeit       | –                                         | `event_date`, `start_time`, `end_time`     |
+| Kunde               | –                                         | `client_name`, `client_contact`            |
+
+### Datenbankstruktur Events
+
+```sql
+-- Haupt-Event-Tabelle
+events (
+  id, title, event_type, client_name, client_contact,
+  location, event_date, start_time, end_time,
+  materials_needed, price_estimate, payment_status,
+  status, notes, created_at, updated_at
+)
+
+-- Equipment-Liste für ein Event
+event_equipment (
+  id, event_id, asset_id, asset_name, reserved
+)
+
+-- Änderungshistorie
+event_history (
+  id, event_id, action, detail, changed_at
+)
+```
+
+### API-Endpunkte Events
+
+| Method | Endpoint                               | Beschreibung                          |
+|--------|----------------------------------------|---------------------------------------|
+| GET    | `/events`                              | Alle Events (Filter: status, event_type, date_from, date_to, search) |
+| GET    | `/events/upcoming`                     | Nächste 10 bevorstehende Events       |
+| GET    | `/events/:id`                          | Event mit Equipment, Anhängen, Verlauf |
+| POST   | `/events`                              | Neues Event anlegen                   |
+| PUT    | `/events/:id`                          | Event aktualisieren                   |
+| DELETE | `/events/:id`                          | Event löschen                         |
+| GET    | `/events/:id/history`                  | Änderungsverlauf                      |
+| POST   | `/events/:id/equipment`                | Equipment-Item hinzufügen             |
+| PUT    | `/events/:id/equipment/:eqId`          | Equipment aktualisieren (z.B. reserviert) |
+| DELETE | `/events/:id/equipment/:eqId`          | Equipment-Item entfernen              |
+| POST   | `/events/:id/attachments`              | Dateien anhängen (Vertrag, Setlist)   |
+| DELETE | `/events/:id/attachments/:attId`       | Anhang löschen                        |
+
+### Workflow-Beispiel: DJ-Event mit CDJs + Mixer + PA
+
+```json
+POST /events
+{
+  "title": "Techno Night Club Berlin",
+  "event_type": "DJ",
+  "client_name": "Club XYZ",
+  "client_contact": "0171-9876543",
+  "location": "Club Berlin, Mitte",
+  "event_date": "2026-03-15",
+  "start_time": "22:00",
+  "end_time": "06:00",
+  "price_estimate": 1800,
+  "payment_status": "angezahlt",
+  "status": "bestätigt",
+  "equipment": [
+    { "asset_name": "Pioneer CDJ-3000 (x2)", "reserved": true },
+    { "asset_name": "DJM-900NXS2",           "reserved": true },
+    { "asset_name": "PA-System 2kW",          "reserved": false }
+  ]
+}
+```
+
+Status-Änderung wenn Event beginnt:
+```bash
+PUT /events/1
+{ "status": "durchgeführt" }
+```
+
+Zahlung bestätigen:
+```bash
+PUT /events/1
+{ "payment_status": "bezahlt" }
+```
+
+### Workflow-Beispiel: Technik-Event (Netzwerk-Setup)
+
+```json
+POST /events
+{
+  "title": "Netzwerk-Aufbau Bürogebäude",
+  "event_type": "Netzwerk-Setup",
+  "client_name": "Firma AG",
+  "location": "Bürogebäude Spandau",
+  "event_date": "2026-04-01",
+  "price_estimate": 600,
+  "payment_status": "offen",
+  "status": "angefragt",
+  "materials_needed": "Patchkabel Cat6 (10x), Keystone-Module, Beschriftungsband",
+  "equipment": [
+    { "asset_name": "UniFi UDM SE",       "reserved": false },
+    { "asset_name": "USW-24-POE",         "reserved": false },
+    { "asset_name": "Patchpanel 24-Port", "reserved": false }
+  ]
+}
+```
+
+### Shelf API Integration für Equipment
+
+Wenn `SHELF_API_TOKEN` konfiguriert ist, zeigt das EventForm-Modal ein Dropdown mit allen Shelf-Assets:
+
+1. User öffnet „Neues Event"
+2. Klickt „+ Equipment hinzufügen"
+3. Wählt aus Shelf-Dropdown z.B. „CDJ-3000 #2" (mit Asset-ID)
+4. Die `asset_id` wird in `event_equipment` gespeichert
+5. Zukünftig kann man prüfen: Welche Shelf-Assets sind für welche Events reserviert?
+
+### Zahlungsmodul (zukünftige Erweiterung)
+
+Das `price_estimate` + `payment_status` Feld ist bewusst einfach gehalten. Für ein vollständiges Rechnungsmodul:
+
+```sql
+-- Zukünftige invoices-Tabelle
+CREATE TABLE invoices (
+  id          INTEGER PRIMARY KEY,
+  event_id    INTEGER REFERENCES events(id),
+  invoice_nr  TEXT,
+  amount_net  REAL,
+  tax_rate    REAL DEFAULT 19.0,
+  amount_gross REAL,
+  issued_date TEXT,
+  due_date    TEXT,
+  paid_date   TEXT,
+  pdf_path    TEXT    -- gespeicherte PDF-Datei
+);
+```
+
+---
+
+## 13. Netzwerk-Modul
+
+### Überblick
+
+Das Netzwerk-Modul ermöglicht die Dokumentation und Visualisierung der gesamten Netzwerk-Infrastruktur: Geräte, Ports, Verbindungen und Racks.
+
+### Datenbankstruktur Netzwerk
+
+```sql
+-- Rack-Einheiten (Serverschrank)
+racks (
+  id, name, location, size_u, notes,
+  created_at, updated_at
+)
+
+-- Netzwerkgeräte
+network_devices (
+  id, name, device_type, manufacturer, model,
+  asset_id, ip_address, mac_address, location,
+  rack_id, rack_position,
+  pos_x, pos_y,          -- Canvas-Position für Topologie-Ansicht
+  notes, created_at, updated_at
+)
+
+-- Ports auf einem Gerät
+ports (
+  id, device_id, port_number, port_label,
+  connected_to_device_id,  -- logische Verbindung zu anderem Gerät
+  connected_to_port_id,    -- spezifischer Port am Zielgerät
+  vlan, poe_enabled, poe_consumption,
+  speed, status, notes
+)
+```
+
+### Beziehungen zwischen Geräten und Ports
+
+```
+network_devices (1)
+    ↓ has many
+  ports (N)
+    ↓ connected_to_device_id references
+  network_devices (1)
+    ↓ connected_to_port_id references
+  ports (1)
+```
+
+Eine Verbindung wird durch `connected_to_device_id` auf einem Port modelliert (optional auch `connected_to_port_id` für den genauen Ziel-Port). Die Topologie-Ansicht dedupliziert Verbindungen automatisch (A→B = B→A).
+
+### API-Endpunkte Netzwerk
+
+| Method | Endpoint                                  | Beschreibung                             |
+|--------|-------------------------------------------|------------------------------------------|
+| GET    | `/network/topology`                       | Nodes + Edges für React Flow             |
+| GET    | `/network/racks`                          | Alle Racks                               |
+| POST   | `/network/racks`                          | Rack anlegen                             |
+| PUT    | `/network/racks/:id`                      | Rack aktualisieren                       |
+| DELETE | `/network/racks/:id`                      | Rack löschen                             |
+| GET    | `/network/devices`                        | Alle Geräte (mit Port-Anzahl)            |
+| GET    | `/network/devices/:id`                    | Gerät mit allen Ports                    |
+| POST   | `/network/devices`                        | Neues Gerät anlegen                      |
+| PUT    | `/network/devices/:id`                    | Gerät aktualisieren (inkl. Canvas-Pos.)  |
+| DELETE | `/network/devices/:id`                    | Gerät löschen (Ports kaskadiert)         |
+| GET    | `/network/devices/:id/ports`              | Ports eines Geräts                       |
+| POST   | `/network/devices/:id/ports`              | Port hinzufügen                          |
+| PUT    | `/network/devices/:id/ports/:pid`         | Port aktualisieren (VLAN, PoE, Status)   |
+| DELETE | `/network/devices/:id/ports/:pid`         | Port löschen                             |
+
+### Beispiel: UniFi Setup (UDM + 24-Port Switch + 3 APs)
+
+```bash
+# 1. UDM SE anlegen
+POST /network/devices
+{
+  "name": "UDM SE",
+  "device_type": "Router",
+  "manufacturer": "UniFi",
+  "model": "UDM-SE",
+  "ip_address": "192.168.1.1",
+  "location": "Serverraum EG",
+  "pos_x": 100, "pos_y": 200
+}
+
+# 2. Core-Switch
+POST /network/devices
+{
+  "name": "Core Switch 24P",
+  "device_type": "Switch",
+  "model": "USW-24-POE",
+  "ip_address": "192.168.1.2"
+}
+
+# 3. Uplink-Port: UDM → Switch (Port 1, 10G)
+POST /network/devices/1/ports
+{
+  "port_number": 1,
+  "port_label": "Uplink → Core Switch",
+  "speed": "10G",
+  "status": "aktiv",
+  "connected_to_device_id": 2
+}
+
+# 4. Access Points mit PoE
+POST /network/devices/2/ports
+{
+  "port_number": 1,
+  "port_label": "AP Büro 1.OG",
+  "speed": "1G",
+  "poe_enabled": true,
+  "vlan": "10",
+  "connected_to_device_id": 3
+}
+```
+
+### Beispiel: VLAN-Struktur für Event
+
+```bash
+# Temporäre Ports für Event-VLAN dokumentieren
+PUT /network/devices/2/ports/5
+{
+  "vlan": "100",
+  "port_label": "Event DJ-Setup",
+  "status": "reserviert",
+  "notes": "Techno Night 2026-03-15, VLAN 100 nur für Event-Dauer"
+}
+```
+
+Nach dem Event:
+```bash
+PUT /network/devices/2/ports/5
+{ "vlan": null, "status": "inaktiv", "port_label": null }
+```
+
+### Topologie-Visualisierung (React Flow)
+
+Der Endpunkt `GET /network/topology` liefert:
+```json
+{
+  "nodes": [
+    {
+      "id": "1",
+      "type": "networkDevice",
+      "position": { "x": 100, "y": 200 },
+      "data": { "label": "UDM SE", "device_type": "Router", "ip_address": "192.168.1.1", "portCount": 4, "activePorts": 3 }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "1",
+      "target": "2",
+      "label": "Uplink → Core Switch",
+      "data": { "speed": "10G", "vlan": null }
+    }
+  ]
+}
+```
+
+Das Frontend rendert diese Daten mit `@xyflow/react` als interaktiven Graph:
+- **Drag & Drop** zum Positionieren der Geräte (Position wird per `PUT /devices/:id` gespeichert)
+- **Klick auf Node** öffnet den Port-Manager für dieses Gerät
+- **Zoom & Pan** für große Topologien
+- **MiniMap** für die Übersicht
+
+### Neue Gerätetypen hinzufügen
+
+1. In `backend/src/db/database.js` die CHECK-Constraint erweitern:
+   ```sql
+   CHECK(device_type IN ('Router','Switch','Access Point','Patchpanel','Firewall','Server','Sonstiges','NAS'))
+   ```
+
+2. In `frontend/src/components/NetworkTopology.jsx` ein Icon hinzufügen:
+   ```js
+   const ICONS = {
+     'NAS': '💾',
+     // ...existing entries
+   };
+   ```
+
+3. In `frontend/src/components/NetworkDeviceForm.jsx` den `DEVICE_TYPES`-Array erweitern:
+   ```js
+   const DEVICE_TYPES = [..., 'NAS'];
+   ```
+
+4. In `frontend/src/index.css` eine Badge-Farbe hinzufügen:
+   ```css
+   .badge-NAS { background: #fce7f3; color: #be185d; }
+   ```
+
+### Zukunftsideen
+
+- **SNMP Monitoring** – Echtzeit-Status via `snmp-native` Library abfragen
+- **Live Status Integration** – Ping/HTTP-Check alle 60s, Status-LED grün/rot
+- **Auto-Import aus UniFi API** – Geräte automatisch aus UniFi Controller importieren
+- **Export als PNG / PDF** – React Flow `toObject()` + html2canvas / jsPDF
+- **Netzwerk-Diagram als SVG** – für Dokumentations-Exports
+- **Alarme** – Email/Pushover wenn Gerät offline geht
 
 ---
 

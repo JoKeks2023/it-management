@@ -80,3 +80,118 @@ export const assetsApi = {
   /** Get a single asset by its Shelf ID */
   get: (id) => fetch(`${BASE_URL}/assets/${id}`).then(handleResponse)
 };
+
+// ---------------------------------------------------------------------------
+// Events
+// ---------------------------------------------------------------------------
+export const eventsApi = {
+  /** List events with optional filters: { status, event_type, date_from, date_to, search } */
+  list: (filters = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([k, v]) => { if (v) params.append(k, v); });
+    const query = params.toString() ? `?${params}` : '';
+    return fetch(`${BASE_URL}/events${query}`).then(handleResponse);
+  },
+
+  /** Get the next upcoming events */
+  upcoming: () => fetch(`${BASE_URL}/events/upcoming`).then(handleResponse),
+
+  /** Get a single event with equipment, attachments, and history */
+  get: (id) => fetch(`${BASE_URL}/events/${id}`).then(handleResponse),
+
+  /** Create a new event */
+  create: (data) =>
+    fetch(`${BASE_URL}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).then(handleResponse),
+
+  /** Update an event (partial update) */
+  update: (id, data) =>
+    fetch(`${BASE_URL}/events/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).then(handleResponse),
+
+  /** Delete an event */
+  delete: (id) =>
+    fetch(`${BASE_URL}/events/${id}`, { method: 'DELETE' }).then(handleResponse),
+
+  /** Get change history for an event */
+  history: (id) => fetch(`${BASE_URL}/events/${id}/history`).then(handleResponse),
+
+  /** Update a single equipment item (e.g. toggle reserved flag) */
+  updateEquipment: (eventId, eqId, data) =>
+    fetch(`${BASE_URL}/events/${eventId}/equipment/${eqId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).then(handleResponse),
+
+  /** Upload attachment files to an event */
+  uploadAttachments: (id, formData) =>
+    fetch(`${BASE_URL}/events/${id}/attachments`, {
+      method: 'POST',
+      body: formData
+    }).then(handleResponse),
+
+  /** Delete an event attachment */
+  deleteAttachment: (eventId, attachmentId) =>
+    fetch(`${BASE_URL}/events/${eventId}/attachments/${attachmentId}`, {
+      method: 'DELETE'
+    }).then(handleResponse)
+};
+
+// ---------------------------------------------------------------------------
+// Network
+// ---------------------------------------------------------------------------
+export const networkApi = {
+  // --- Topology ---
+  topology: () => fetch(`${BASE_URL}/network/topology`).then(handleResponse),
+
+  // --- Racks ---
+  listRacks: () => fetch(`${BASE_URL}/network/racks`).then(handleResponse),
+  createRack: (data) =>
+    fetch(`${BASE_URL}/network/racks`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+    }).then(handleResponse),
+  updateRack: (id, data) =>
+    fetch(`${BASE_URL}/network/racks/${id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+    }).then(handleResponse),
+  deleteRack: (id) =>
+    fetch(`${BASE_URL}/network/racks/${id}`, { method: 'DELETE' }).then(handleResponse),
+
+  // --- Devices ---
+  listDevices: () => fetch(`${BASE_URL}/network/devices`).then(handleResponse),
+  getDevice: (id) => fetch(`${BASE_URL}/network/devices/${id}`).then(handleResponse),
+  createDevice: (data) =>
+    fetch(`${BASE_URL}/network/devices`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+    }).then(handleResponse),
+  updateDevice: (id, data) =>
+    fetch(`${BASE_URL}/network/devices/${id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+    }).then(handleResponse),
+  deleteDevice: (id) =>
+    fetch(`${BASE_URL}/network/devices/${id}`, { method: 'DELETE' }).then(handleResponse),
+
+  // --- Ports ---
+  listPorts: (deviceId) =>
+    fetch(`${BASE_URL}/network/devices/${deviceId}/ports`).then(handleResponse),
+  createPort: (deviceId, data) =>
+    fetch(`${BASE_URL}/network/devices/${deviceId}/ports`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+    }).then(handleResponse),
+  updatePort: (deviceId, portId, data) =>
+    fetch(`${BASE_URL}/network/devices/${deviceId}/ports/${portId}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+    }).then(handleResponse),
+  deletePort: (deviceId, portId) =>
+    fetch(`${BASE_URL}/network/devices/${deviceId}/ports/${portId}`, {
+      method: 'DELETE'
+    }).then(handleResponse)
+};
+

@@ -1,19 +1,44 @@
 // src/App.jsx
-// Root application component. Renders the header and the Dashboard page.
+// Root application component with tab navigation:
+//   Tickets | Events | Netzwerk
 
-import { Dashboard } from './pages/Dashboard';
+import { useState } from 'react';
+import { Dashboard }        from './pages/Dashboard';
+import { EventsDashboard }  from './pages/EventsDashboard';
+import { NetworkDashboard } from './pages/NetworkDashboard';
+
+const TABS = [
+  { id: 'tickets', label: '🎫 Tickets' },
+  { id: 'events',  label: '🎵 Events'  },
+  { id: 'network', label: '🌐 Netzwerk' }
+];
 
 export default function App() {
+  const [activeTab, setActiveTab] = useState('tickets');
+
   return (
     <div className="app-layout">
       <header className="app-header">
-        <div className="logo">
-          🖥️ IT Management
-        </div>
-        <span className="text-muted text-sm">Persönliches Ticket- &amp; Asset-System</span>
+        <div className="logo">🖥️ IT Management</div>
+        <nav className="tab-nav">
+          {TABS.map(t => (
+            <button
+              key={t.id}
+              className={`tab-btn${activeTab === t.id ? ' active' : ''}`}
+              onClick={() => setActiveTab(t.id)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </nav>
+        <span className="text-muted text-sm" style={{ minWidth: 160, textAlign: 'right' }}>
+          Persönliches IT-System
+        </span>
       </header>
       <main className="app-main">
-        <Dashboard />
+        {activeTab === 'tickets' && <Dashboard />}
+        {activeTab === 'events'  && <EventsDashboard />}
+        {activeTab === 'network' && <NetworkDashboard />}
       </main>
     </div>
   );

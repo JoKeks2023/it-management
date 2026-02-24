@@ -124,3 +124,36 @@ a:hover { text-decoration: underline; }
 
 .material-input-row { display: flex; gap: .5rem; align-items: center; margin-bottom: .4rem; }
 .material-input-row .form-input { flex: 1; }
+
+/* ─── Tab navigation ────────────────────────────────────────────────────── */
+.tab-nav { display: flex; gap: .25rem; align-items: center; flex: 1; justify-content: center; }
+.tab-btn { background: transparent; border: none; padding: .4rem .85rem; font-size: .875rem; font-weight: 500; color: var(--color-text-muted); border-radius: 6px; cursor: pointer; transition: background .15s, color .15s; }
+.tab-btn:hover { background: var(--color-bg); color: var(--color-text); }
+.tab-btn.active { background: var(--color-primary); color: #fff; }
+
+/* ─── Event status badges ────────────────────────────────────────────────── */
+.badge-angefragt    { background: #f1f5f9; color: #64748b; }
+.badge-bestätigt    { background: #dbeafe; color: #1d4ed8; }
+.badge-vorbereitet  { background: #fef9c3; color: #a16207; }
+.badge-durchgeführt { background: #fce7f3; color: #be185d; }
+.badge-abgeschlossen{ background: #dcfce7; color: #15803d; }
+
+/* Payment status */
+.badge-offen       { background: #fee2e2; color: #b91c1c; }
+.badge-angezahlt   { background: #fef3c7; color: #b45309; }
+.badge-bezahlt     { background: #dcfce7; color: #15803d; }
+
+/* Event types */
+.badge-DJ              { background: #f3e8ff; color: #7c3aed; }
+.badge-Technik         { background: #dbeafe; color: #1d4ed8; }
+.badge-Netzwerk-Setup  { background: #ecfdf5; color: #065f46; }
+.badge-Hybrid          { background: #fce7f3; color: #be185d; }
+
+/* Network device type badges */
+.badge-Router        { background: #fef3c7; color: #b45309; }
+.badge-Switch        { background: #dbeafe; color: #1d4ed8; }
+.badge-Access\ Point { background: #ecfdf5; color: #065f46; }
+.badge-Patchpanel    { background: #f1f5f9; color: #64748b; }
+.badge-Firewall      { background: #fee2e2; color: #b91c1c; }
+.badge-Server        { background: #f3e8ff; color: #7c3aed; }
+.badge-Sonstiges     { background: #f1f5f9; color: #64748b; }

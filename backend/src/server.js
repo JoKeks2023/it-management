@@ -10,7 +10,9 @@ const path = require('path');
 const rateLimit = require('express-rate-limit');
 
 const ticketRoutes = require('./routes/tickets');
-const assetRoutes = require('./routes/assets');
+const assetRoutes  = require('./routes/assets');
+const eventRoutes  = require('./routes/events');
+const networkRoutes = require('./routes/network');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -60,8 +62,11 @@ const uploadLimiter = rateLimit({
 });
 
 app.use('/tickets', apiLimiter);
-app.use('/assets', apiLimiter);
+app.use('/assets',  apiLimiter);
+app.use('/events',  apiLimiter);
+app.use('/network', apiLimiter);
 app.use('/tickets/:id/attachments', uploadLimiter);
+app.use('/events/:id/attachments',  uploadLimiter);
 
 // Serve uploaded files as static assets
 const uploadDir = process.env.UPLOAD_DIR
@@ -74,7 +79,9 @@ app.use('/uploads', express.static(uploadDir));
 // Routes
 // ---------------------------------------------------------------------------
 app.use('/tickets', ticketRoutes);
-app.use('/assets', assetRoutes);
+app.use('/assets',  assetRoutes);
+app.use('/events',  eventRoutes);
+app.use('/network', networkRoutes);
 
 // Health-check endpoint
 app.get('/health', (_req, res) => {
