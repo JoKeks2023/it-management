@@ -484,7 +484,7 @@ router.delete('/:id/crew/:crewId', (req, res) => {
   if (!member) return res.status(404).json({ error: 'Crew member not found' });
 
   db.prepare('DELETE FROM event_crew WHERE id = ?').run(crewId);
-  logHistory(eventId, 'crew_removed', `"${member.name}" aus dem Crew entfernt`);
+  logHistory(eventId, 'crew_removed', `"${member.name}" aus der Crew entfernt`);
   res.json({ message: 'Crew member removed' });
 });
 

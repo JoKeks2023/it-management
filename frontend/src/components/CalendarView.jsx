@@ -1,5 +1,5 @@
 // src/components/CalendarView.jsx
-// Monthly calendar grid showing events as coloured pills.
+// Monthly calendar grid showing events as colored pills.
 // Navigation: prev/next month + "Heute" button.
 
 import { useState } from 'react';
