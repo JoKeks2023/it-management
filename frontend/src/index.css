@@ -164,6 +164,25 @@ a:hover { text-decoration: underline; }
 .badge-Lieferant     { background: #fef3c7; color: #b45309; }
 .badge-Techniker     { background: #ecfdf5; color: #065f46; }
 
+/* Inventory category badges */
+.badge-Audio         { background: #f3e8ff; color: #7c3aed; }
+.badge-Licht         { background: #fef9c3; color: #a16207; }
+.badge-Video         { background: #dbeafe; color: #1d4ed8; }
+.badge-Rigging       { background: #fce7f3; color: #be185d; }
+.badge-Strom         { background: #fee2e2; color: #b91c1c; }
+.badge-Transport     { background: #ecfdf5; color: #065f46; }
+
+/* Quote type / status badges */
+.badge-Angebot       { background: #dbeafe; color: #1d4ed8; }
+.badge-Rechnung      { background: #dcfce7; color: #15803d; }
+.badge-Gutschrift     { background: #fef3c7; color: #b45309; }
+.badge-Entwurf       { background: #f1f5f9; color: #64748b; }
+.badge-Gesendet      { background: #dbeafe; color: #1d4ed8; }
+.badge-Angenommen    { background: #dcfce7; color: #15803d; }
+.badge-Abgelehnt     { background: #fee2e2; color: #b91c1c; }
+.badge-Bezahlt       { background: #dcfce7; color: #15803d; font-weight: 700; }
+.badge-Storniert     { background: #f1f5f9; color: #94a3b8; text-decoration: line-through; }
+
 /* ─── Calendar ───────────────────────────────────────────────────────────── */
 .calendar-wrap { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
 .calendar-nav { display: flex; align-items: center; gap: .5rem; padding: .75rem 1rem; border-bottom: 1px solid var(--color-border); }

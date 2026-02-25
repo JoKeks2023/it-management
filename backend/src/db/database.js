@@ -107,6 +107,8 @@ function initializeDatabase() {
       client_contact  TEXT,               -- phone or email
       location        TEXT,
       event_date      TEXT,               -- ISO date YYYY-MM-DD
+      setup_date      TEXT,               -- ISO date: load-in / setup day
+      teardown_date   TEXT,               -- ISO date: teardown / return day
       start_time      TEXT,               -- HH:MM
       end_time        TEXT,               -- HH:MM
       materials_needed TEXT,              -- free-text list of needed materials
@@ -248,7 +250,102 @@ function initializeDatabase() {
       contact_id  INTEGER REFERENCES contacts(id) ON DELETE SET NULL,
       confirmed   INTEGER NOT NULL DEFAULT 0  -- 0 = angefragt, 1 = bestätigt
     );
+
+    -- ================================================================
+    -- INVENTORY / EQUIPMENT CATALOG
+    -- Owned items with quantities, rental rates, and categories.
+    -- ================================================================
+
+    -- ----------------------------------------------------------------
+    -- inventory_items table
+    -- Each row is one type of equipment you own (e.g. "CDJ-3000").
+    -- ----------------------------------------------------------------
+    CREATE TABLE IF NOT EXISTS inventory_items (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      name          TEXT    NOT NULL,
+      category      TEXT    NOT NULL DEFAULT 'Sonstiges',
+      description   TEXT,
+      quantity       INTEGER NOT NULL DEFAULT 1 CHECK(quantity >= 0),
+      purchase_price REAL,                    -- buying cost (optional)
+      rental_rate    REAL    NOT NULL DEFAULT 0, -- price per day
+      barcode       TEXT,                    -- optional barcode / SKU
+      notes         TEXT,
+      created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+      updated_at    TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
+    -- ----------------------------------------------------------------
+    -- event_inventory_items table
+    -- Links specific inventory items to an event booking.
+    -- ----------------------------------------------------------------
+    CREATE TABLE IF NOT EXISTS event_inventory_items (
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      event_id         INTEGER NOT NULL REFERENCES events(id)         ON DELETE CASCADE,
+      inventory_item_id INTEGER NOT NULL REFERENCES inventory_items(id) ON DELETE CASCADE,
+      quantity         INTEGER NOT NULL DEFAULT 1 CHECK(quantity > 0),
+      rental_days      INTEGER NOT NULL DEFAULT 1 CHECK(rental_days > 0),
+      unit_price       REAL    NOT NULL DEFAULT 0,  -- price per day at booking time
+      notes            TEXT
+    );
+
+    -- ================================================================
+    -- QUOTES / INVOICES
+    -- Financial documents tied to events (Angebote & Rechnungen).
+    -- ================================================================
+
+    -- ----------------------------------------------------------------
+    -- quotes table
+    -- ----------------------------------------------------------------
+    CREATE TABLE IF NOT EXISTS quotes (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      event_id     INTEGER REFERENCES events(id) ON DELETE SET NULL,
+      quote_number TEXT    NOT NULL,
+      quote_type   TEXT    NOT NULL DEFAULT 'Angebot'
+                           CHECK(quote_type IN ('Angebot','Rechnung','Gutschrift')),
+      issue_date   TEXT    NOT NULL DEFAULT (date('now')),
+      valid_until  TEXT,
+      client_name  TEXT,
+      client_address TEXT,
+      status       TEXT    NOT NULL DEFAULT 'Entwurf'
+                           CHECK(status IN ('Entwurf','Gesendet','Angenommen','Abgelehnt','Bezahlt','Storniert')),
+      subtotal     REAL    NOT NULL DEFAULT 0,
+      tax_rate     REAL    NOT NULL DEFAULT 19,
+      tax_amount   REAL    NOT NULL DEFAULT 0,
+      total        REAL    NOT NULL DEFAULT 0,
+      notes        TEXT,
+      created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+      updated_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
+    -- ----------------------------------------------------------------
+    -- quote_items table
+    -- Line items within a quote / invoice.
+    -- ----------------------------------------------------------------
+    CREATE TABLE IF NOT EXISTS quote_items (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      quote_id    INTEGER NOT NULL REFERENCES quotes(id) ON DELETE CASCADE,
+      position    INTEGER NOT NULL DEFAULT 1,
+      description TEXT    NOT NULL,
+      quantity    REAL    NOT NULL DEFAULT 1,
+      unit        TEXT    DEFAULT 'Tag',
+      unit_price  REAL    NOT NULL DEFAULT 0,
+      total       REAL    NOT NULL DEFAULT 0
+    );
   `);
+
+  // -------------------------------------------------------------------
+  // Migrations: safely add columns introduced after the initial schema.
+  // SQLite does not support IF NOT EXISTS on ALTER TABLE, so we catch
+  // the "duplicate column" error and ignore it.
+  // -------------------------------------------------------------------
+  const safeAddColumn = (table, column, definition) => {
+    try {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+    } catch (_) { /* column already exists – ignore */ }
+  };
+
+  safeAddColumn('events', 'setup_date',    'TEXT');
+  safeAddColumn('events', 'teardown_date', 'TEXT');
 }
 
 initializeDatabase();

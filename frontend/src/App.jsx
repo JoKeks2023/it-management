@@ -1,18 +1,22 @@
 // src/App.jsx
 // Root application component with tab navigation:
-//   Tickets | Events | Kontakte | Netzwerk
+//   Tickets | Events | Inventar | Kontakte | Angebote | Netzwerk
 
 import { useState } from 'react';
 import { Dashboard }        from './pages/Dashboard';
 import { EventsDashboard }  from './pages/EventsDashboard';
 import { NetworkDashboard } from './pages/NetworkDashboard';
 import { ContactsPage }     from './pages/ContactsPage';
+import { InventoryPage }    from './pages/InventoryPage';
+import { QuotesPage }       from './pages/QuotesPage';
 
 const TABS = [
-  { id: 'tickets',  label: '🎫 Tickets'  },
-  { id: 'events',   label: '🎵 Events'   },
-  { id: 'contacts', label: '👥 Kontakte' },
-  { id: 'network',  label: '🌐 Netzwerk' }
+  { id: 'tickets',   label: '🎫 Tickets'   },
+  { id: 'events',    label: '🎵 Events'    },
+  { id: 'inventory', label: '📦 Inventar'  },
+  { id: 'quotes',    label: '📄 Angebote'  },
+  { id: 'contacts',  label: '👥 Kontakte'  },
+  { id: 'network',   label: '🌐 Netzwerk'  }
 ];
 
 export default function App() {
@@ -38,10 +42,12 @@ export default function App() {
         </span>
       </header>
       <main className="app-main">
-        {activeTab === 'tickets'  && <Dashboard />}
-        {activeTab === 'events'   && <EventsDashboard />}
-        {activeTab === 'contacts' && <ContactsPage />}
-        {activeTab === 'network'  && <NetworkDashboard />}
+        {activeTab === 'tickets'   && <Dashboard />}
+        {activeTab === 'events'    && <EventsDashboard />}
+        {activeTab === 'inventory' && <InventoryPage />}
+        {activeTab === 'quotes'    && <QuotesPage />}
+        {activeTab === 'contacts'  && <ContactsPage />}
+        {activeTab === 'network'   && <NetworkDashboard />}
       </main>
     </div>
   );

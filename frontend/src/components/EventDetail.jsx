@@ -3,9 +3,10 @@
 // equipment reservation management, file attachments, and change history.
 
 import { useState, useEffect, useRef } from 'react';
-import { eventsApi, contactsApi } from '../services/api';
+import { eventsApi, contactsApi, inventoryApi, quotesApi } from '../services/api';
 import { StatusBadge } from './StatusBadge';
 import { EventForm } from './EventForm';
+import { QuoteView } from './QuoteView';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 const STATUSES         = ['angefragt', 'bestätigt', 'vorbereitet', 'durchgeführt', 'abgeschlossen'];
@@ -30,6 +31,14 @@ export function EventDetail({ eventId, onClose, onUpdated }) {
   const [uploading, setUploading] = useState(false);
   const [newCrew, setNewCrew] = useState({ name: '', role: '' });
   const [addingCrew, setAddingCrew] = useState(false);
+  // Inventory picker state
+  const [catalogItems, setCatalogItems]   = useState([]);
+  const [newInvLine,   setNewInvLine]     = useState({ inventory_item_id: '', quantity: 1, rental_days: 1 });
+  const [addingInv,    setAddingInv]      = useState(false);
+  const [availInfo,    setAvailInfo]      = useState(null); // { available, booked, quantity }
+  // Quote
+  const [generatingQuote, setGeneratingQuote] = useState(false);
+  const [openQuoteId,     setOpenQuoteId]     = useState(null);
   const fileRef = useRef(null);
 
   const load = async () => {
@@ -48,6 +57,11 @@ export function EventDetail({ eventId, onClose, onUpdated }) {
   };
 
   useEffect(() => { load(); }, [eventId]);
+
+  // Load inventory catalog once
+  useEffect(() => {
+    inventoryApi.list().then(setCatalogItems).catch(() => {});
+  }, []);
 
   const handleStatusChange = async (status) => {
     try {
@@ -129,6 +143,50 @@ export function EventDetail({ eventId, onClose, onUpdated }) {
       await contactsApi.deleteCrew(eventId, memberId);
       setEvent(ev => ({ ...ev, crew: ev.crew.filter(m => m.id !== memberId) }));
     } catch (err) { alert('Fehler: ' + err.message); }
+  };
+
+  // Check availability when the selected inventory item changes
+  const handleInvItemSelect = async (itemId) => {
+    setNewInvLine(l => ({ ...l, inventory_item_id: itemId }));
+    setAvailInfo(null);
+    if (!itemId || !event) return;
+    try {
+      const info = await inventoryApi.availability(itemId, {
+        date_from: event.setup_date || event.event_date,
+        date_to:   event.teardown_date || event.event_date,
+        exclude_event_id: eventId
+      });
+      setAvailInfo(info);
+    } catch (e) { void e; } /* availability check is non-critical */
+  };
+
+  const handleAddInventoryItem = async (e) => {
+    e.preventDefault();
+    if (!newInvLine.inventory_item_id) return;
+    setAddingInv(true);
+    try {
+      const line = await inventoryApi.addEventItem(eventId, newInvLine);
+      setEvent(ev => ({ ...ev, inventory_items: [...(ev.inventory_items || []), line] }));
+      setNewInvLine({ inventory_item_id: '', quantity: 1, rental_days: 1 });
+      setAvailInfo(null);
+    } catch (err) { alert('Fehler: ' + err.message); }
+    finally { setAddingInv(false); }
+  };
+
+  const handleRemoveInventoryItem = async (lineId) => {
+    try {
+      await inventoryApi.deleteEventItem(eventId, lineId);
+      setEvent(ev => ({ ...ev, inventory_items: ev.inventory_items.filter(l => l.id !== lineId) }));
+    } catch (err) { alert('Fehler: ' + err.message); }
+  };
+
+  const handleGenerateQuote = async () => {
+    setGeneratingQuote(true);
+    try {
+      const quote = await quotesApi.fromEvent(eventId, { tax_rate: 19 });
+      setOpenQuoteId(quote.id);
+    } catch (err) { alert('Fehler: ' + err.message); }
+    finally { setGeneratingQuote(false); }
   };
 
   if (loading) {
@@ -250,6 +308,60 @@ export function EventDetail({ eventId, onClose, onUpdated }) {
                   </div>
                 )}
 
+                {/* Inventory items (catalog bookings) */}
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '.75rem' }}>
+                    <p className="section-title" style={{ margin: 0 }}>Equipment aus Inventar</p>
+                    <button className="btn btn-ghost btn-sm" onClick={handleGenerateQuote} disabled={generatingQuote}>
+                      {generatingQuote ? 'Generiere…' : '📄 Angebot erstellen'}
+                    </button>
+                  </div>
+                  {event.inventory_items && event.inventory_items.length > 0 ? (
+                    <ul className="materials-list" style={{ marginBottom: '.75rem' }}>
+                      {event.inventory_items.map(line => (
+                        <li key={line.id} className="material-item">
+                          <span style={{ flex: 1 }}>
+                            <strong>{line.item_name}</strong>
+                            <span className="text-muted"> · {line.quantity}×, {line.rental_days} Tag(e) · {(line.unit_price * line.rental_days * line.quantity).toFixed(0)} €</span>
+                          </span>
+                          <button className="btn btn-ghost btn-sm"
+                            onClick={() => handleRemoveInventoryItem(line.id)} aria-label="Entfernen">✕</button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : <p className="text-muted" style={{ marginBottom: '.75rem' }}>Noch kein Inventar gebucht</p>}
+                  {catalogItems.length > 0 && (
+                    <form onSubmit={handleAddInventoryItem} style={{ display: 'flex', gap: '.4rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                      <div style={{ flex: '2 1 200px' }}>
+                        <select className="form-select" style={{ fontSize: '.85rem' }}
+                          value={newInvLine.inventory_item_id}
+                          onChange={e => handleInvItemSelect(e.target.value)}>
+                          <option value="">– Artikel wählen –</option>
+                          {catalogItems.map(i => (
+                            <option key={i.id} value={i.id}>{i.name} ({i.quantity} St.)</option>
+                          ))}
+                        </select>
+                        {availInfo && (
+                          <div style={{ fontSize: '.72rem', marginTop: '.15rem', color: availInfo.available > 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>
+                            {availInfo.available > 0
+                              ? `✓ ${availInfo.available} verfügbar (${availInfo.booked} reserviert)`
+                              : `✗ Nicht verfügbar (${availInfo.booked}/${availInfo.quantity} reserviert)`}
+                          </div>
+                        )}
+                      </div>
+                      <input className="form-input" type="number" min="1" style={{ flex: '0 1 65px', fontSize: '.85rem' }}
+                        placeholder="Stk" value={newInvLine.quantity}
+                        onChange={e => setNewInvLine(l => ({ ...l, quantity: Number(e.target.value) }))} />
+                      <input className="form-input" type="number" min="1" style={{ flex: '0 1 65px', fontSize: '.85rem' }}
+                        placeholder="Tage" value={newInvLine.rental_days}
+                        onChange={e => setNewInvLine(l => ({ ...l, rental_days: Number(e.target.value) }))} />
+                      <button type="submit" className="btn btn-ghost btn-sm" disabled={addingInv || !newInvLine.inventory_item_id}>
+                        + Buchen
+                      </button>
+                    </form>
+                  )}
+                </div>
+
                 {/* Notes */}
                 {event.notes && (
                   <div>
@@ -349,6 +461,9 @@ export function EventDetail({ eventId, onClose, onUpdated }) {
 
       {showEdit && (
         <EventForm event={event} onSave={handleEditSave} onClose={() => setShowEdit(false)} />
+      )}
+      {openQuoteId && (
+        <QuoteView quoteId={openQuoteId} onClose={() => setOpenQuoteId(null)} onUpdated={() => {}} />
       )}
     </>
   );

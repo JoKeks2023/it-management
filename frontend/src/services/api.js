@@ -201,6 +201,84 @@ export const contactsApi = {
 };
 
 // ---------------------------------------------------------------------------
+// Inventory / Equipment Catalog
+// ---------------------------------------------------------------------------
+export const inventoryApi = {
+  list: (filters = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([k, v]) => { if (v) params.append(k, v); });
+    const query = params.toString() ? `?${params}` : '';
+    return fetch(`${BASE_URL}/inventory${query}`).then(handleResponse);
+  },
+  categories: () => fetch(`${BASE_URL}/inventory/categories`).then(handleResponse),
+  get: (id) => fetch(`${BASE_URL}/inventory/${id}`).then(handleResponse),
+  create: (data) =>
+    fetch(`${BASE_URL}/inventory`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+    }).then(handleResponse),
+  update: (id, data) =>
+    fetch(`${BASE_URL}/inventory/${id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+    }).then(handleResponse),
+  delete: (id) => fetch(`${BASE_URL}/inventory/${id}`, { method: 'DELETE' }).then(handleResponse),
+  availability: (id, params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
+    return fetch(`${BASE_URL}/inventory/${id}/availability${qs.toString() ? '?' + qs : ''}`).then(handleResponse);
+  },
+
+  // Event inventory lines
+  listEventItems: (eventId) =>
+    fetch(`${BASE_URL}/events/${eventId}/inventory-items`).then(handleResponse),
+  addEventItem: (eventId, data) =>
+    fetch(`${BASE_URL}/events/${eventId}/inventory-items`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+    }).then(handleResponse),
+  updateEventItem: (eventId, lineId, data) =>
+    fetch(`${BASE_URL}/events/${eventId}/inventory-items/${lineId}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+    }).then(handleResponse),
+  deleteEventItem: (eventId, lineId) =>
+    fetch(`${BASE_URL}/events/${eventId}/inventory-items/${lineId}`, { method: 'DELETE' }).then(handleResponse)
+};
+
+// ---------------------------------------------------------------------------
+// Quotes & Invoices
+// ---------------------------------------------------------------------------
+export const quotesApi = {
+  list: (filters = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([k, v]) => { if (v) params.append(k, v); });
+    const query = params.toString() ? `?${params}` : '';
+    return fetch(`${BASE_URL}/quotes${query}`).then(handleResponse);
+  },
+  get: (id) => fetch(`${BASE_URL}/quotes/${id}`).then(handleResponse),
+  create: (data) =>
+    fetch(`${BASE_URL}/quotes`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+    }).then(handleResponse),
+  update: (id, data) =>
+    fetch(`${BASE_URL}/quotes/${id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+    }).then(handleResponse),
+  delete: (id) => fetch(`${BASE_URL}/quotes/${id}`, { method: 'DELETE' }).then(handleResponse),
+  fromEvent: (eventId, data = {}) =>
+    fetch(`${BASE_URL}/quotes/from-event/${eventId}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+    }).then(handleResponse),
+  addItem: (quoteId, data) =>
+    fetch(`${BASE_URL}/quotes/${quoteId}/items`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+    }).then(handleResponse),
+  updateItem: (quoteId, itemId, data) =>
+    fetch(`${BASE_URL}/quotes/${quoteId}/items/${itemId}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+    }).then(handleResponse),
+  deleteItem: (quoteId, itemId) =>
+    fetch(`${BASE_URL}/quotes/${quoteId}/items/${itemId}`, { method: 'DELETE' }).then(handleResponse)
+};
+
+// ---------------------------------------------------------------------------
 // Network
 // ---------------------------------------------------------------------------
 export const networkApi = {
