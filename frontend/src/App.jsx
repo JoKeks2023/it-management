@@ -3,6 +3,7 @@
 //   | Projekte | Templates | Wartung | Setlists
 
 import { useState, useEffect } from 'react';
+import { MainDashboard }        from './pages/MainDashboard';
 import { Dashboard }            from './pages/Dashboard';
 import { EventsDashboard }      from './pages/EventsDashboard';
 import { NetworkDashboard }     from './pages/NetworkDashboard';
@@ -19,6 +20,7 @@ import { Setlist }              from './pages/Setlist';
 import { ConnectionStatus }     from './components/ConnectionStatus';
 
 const TABS = [
+  { id: 'home',        label: '🏠 Home'       },
   { id: 'tickets',     label: '🎫 Tickets'   },
   { id: 'events',      label: '🎵 Events'    },
   { id: 'projects',    label: '🏗️ Projekte'  },
@@ -41,7 +43,7 @@ let headerTimer = null;
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
     // Restore last active tab from localStorage
-    return localStorage.getItem('activeTab') || 'tickets';
+    return localStorage.getItem('activeTab') || 'home';
   });
   const [easterEgg, setEasterEgg] = useState(false);
 
@@ -82,6 +84,7 @@ export default function App() {
         </span>
       </header>
       <main className="app-main">
+        {activeTab === 'home'        && <MainDashboard onNavigate={setActiveTab} />}
         {activeTab === 'tickets'     && <Dashboard />}
         {activeTab === 'events'      && <EventsDashboard />}
         {activeTab === 'projects'    && <Projects />}
@@ -135,6 +138,10 @@ export default function App() {
 
       {/* Mobile quick bar */}
       <div className="quick-bar">
+        <button className="quick-bar-btn" onClick={() => setActiveTab('home')}>
+          <span className="quick-bar-icon">🏠</span>
+          <span>Home</span>
+        </button>
         <button className="quick-bar-btn" onClick={() => setActiveTab('tickets')}>
           <span className="quick-bar-icon">🎫</span>
           <span>Tickets</span>
