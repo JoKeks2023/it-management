@@ -239,7 +239,20 @@ export const inventoryApi = {
       method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
     }).then(handleResponse),
   deleteEventItem: (eventId, lineId) =>
-    fetch(`${BASE_URL}/events/${eventId}/inventory-items/${lineId}`, { method: 'DELETE' }).then(handleResponse)
+    fetch(`${BASE_URL}/events/${eventId}/inventory-items/${lineId}`, { method: 'DELETE' }).then(handleResponse),
+
+  // Repair logs
+  getRepairs: (itemId) => fetch(`${BASE_URL}/inventory/${itemId}/repairs`).then(handleResponse),
+  createRepair: (itemId, data) =>
+    fetch(`${BASE_URL}/inventory/${itemId}/repairs`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+    }).then(handleResponse),
+  updateRepair: (itemId, repairId, data) =>
+    fetch(`${BASE_URL}/inventory/${itemId}/repairs/${repairId}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+    }).then(handleResponse),
+  deleteRepair: (itemId, repairId) =>
+    fetch(`${BASE_URL}/inventory/${itemId}/repairs/${repairId}`, { method: 'DELETE' }).then(handleResponse)
 };
 
 // ---------------------------------------------------------------------------
@@ -276,6 +289,65 @@ export const quotesApi = {
     }).then(handleResponse),
   deleteItem: (quoteId, itemId) =>
     fetch(`${BASE_URL}/quotes/${quoteId}/items/${itemId}`, { method: 'DELETE' }).then(handleResponse)
+};
+
+// ---------------------------------------------------------------------------
+// Equipment Sets / Packages
+// ---------------------------------------------------------------------------
+export const setsApi = {
+  list: () => fetch(`${BASE_URL}/sets`).then(handleResponse),
+  get:  (id) => fetch(`${BASE_URL}/sets/${id}`).then(handleResponse),
+  create: (data) =>
+    fetch(`${BASE_URL}/sets`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+    }).then(handleResponse),
+  update: (id, data) =>
+    fetch(`${BASE_URL}/sets/${id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+    }).then(handleResponse),
+  delete: (id) => fetch(`${BASE_URL}/sets/${id}`, { method: 'DELETE' }).then(handleResponse),
+  addItem: (setId, data) =>
+    fetch(`${BASE_URL}/sets/${setId}/items`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+    }).then(handleResponse),
+  updateItem: (setId, itemId, data) =>
+    fetch(`${BASE_URL}/sets/${setId}/items/${itemId}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+    }).then(handleResponse),
+  deleteItem: (setId, itemId) =>
+    fetch(`${BASE_URL}/sets/${setId}/items/${itemId}`, { method: 'DELETE' }).then(handleResponse),
+  applyToEvent: (setId, eventId, data = {}) =>
+    fetch(`${BASE_URL}/sets/${setId}/apply/${eventId}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+    }).then(handleResponse)
+};
+
+// ---------------------------------------------------------------------------
+// Sub-rental (Fremdmiete)
+// ---------------------------------------------------------------------------
+export const subrentalApi = {
+  list:   (eventId) => fetch(`${BASE_URL}/events/${eventId}/subrentals`).then(handleResponse),
+  create: (eventId, data) =>
+    fetch(`${BASE_URL}/events/${eventId}/subrentals`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+    }).then(handleResponse),
+  update: (eventId, srId, data) =>
+    fetch(`${BASE_URL}/events/${eventId}/subrentals/${srId}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+    }).then(handleResponse),
+  delete: (eventId, srId) =>
+    fetch(`${BASE_URL}/events/${eventId}/subrentals/${srId}`, { method: 'DELETE' }).then(handleResponse)
+};
+
+// ---------------------------------------------------------------------------
+// Reports & Statistics
+// ---------------------------------------------------------------------------
+export const reportsApi = {
+  overview:  () => fetch(`${BASE_URL}/reports/overview`).then(handleResponse),
+  revenue:   (months = 12) => fetch(`${BASE_URL}/reports/revenue?months=${months}`).then(handleResponse),
+  equipment: (limit = 10)  => fetch(`${BASE_URL}/reports/equipment?limit=${limit}`).then(handleResponse),
+  crew:      (limit = 10)  => fetch(`${BASE_URL}/reports/crew?limit=${limit}`).then(handleResponse),
+  events:    (months = 12) => fetch(`${BASE_URL}/reports/events?months=${months}`).then(handleResponse)
 };
 
 // ---------------------------------------------------------------------------

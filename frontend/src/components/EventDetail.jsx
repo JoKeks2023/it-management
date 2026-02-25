@@ -3,10 +3,11 @@
 // equipment reservation management, file attachments, and change history.
 
 import { useState, useEffect, useRef } from 'react';
-import { eventsApi, contactsApi, inventoryApi, quotesApi } from '../services/api';
+import { eventsApi, contactsApi, inventoryApi, quotesApi, subrentalApi, setsApi } from '../services/api';
 import { StatusBadge } from './StatusBadge';
 import { EventForm } from './EventForm';
 import { QuoteView } from './QuoteView';
+import { PackingList } from './PackingList';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 const STATUSES         = ['angefragt', 'bestätigt', 'vorbereitet', 'durchgeführt', 'abgeschlossen'];
@@ -33,22 +34,35 @@ export function EventDetail({ eventId, onClose, onUpdated }) {
   const [addingCrew, setAddingCrew] = useState(false);
   // Inventory picker state
   const [catalogItems, setCatalogItems]   = useState([]);
+  const [catalogSets,  setCatalogSets]    = useState([]);
   const [newInvLine,   setNewInvLine]     = useState({ inventory_item_id: '', quantity: 1, rental_days: 1 });
   const [addingInv,    setAddingInv]      = useState(false);
   const [availInfo,    setAvailInfo]      = useState(null); // { available, booked, quantity }
+  // Sub-rental state
+  const [subrentals,    setSubrentals]    = useState([]);
+  const [newSr,         setNewSr]         = useState({ item_name: '', quantity: 1, rental_cost: 0, rental_days: 1 });
+  const [addingSr,      setAddingSr]      = useState(false);
+  // Crew conflicts
+  const [crewConflicts, setCrewConflicts] = useState([]);
   // Quote
   const [generatingQuote, setGeneratingQuote] = useState(false);
   const [openQuoteId,     setOpenQuoteId]     = useState(null);
+  // Packing list
+  const [showPacking,     setShowPacking]     = useState(false);
   const fileRef = useRef(null);
 
   const load = async () => {
     try {
-      const [ev, hist] = await Promise.all([
+      const [ev, hist, srs, conflicts] = await Promise.all([
         eventsApi.get(eventId),
-        eventsApi.history(eventId)
+        eventsApi.history(eventId),
+        subrentalApi.list(eventId),
+        fetch((import.meta.env.VITE_API_URL || 'http://localhost:3001') + `/events/${eventId}/crew-conflicts`).then(r => r.json()).catch(() => [])
       ]);
       setEvent(ev);
       setHistory(hist);
+      setSubrentals(srs);
+      setCrewConflicts(Array.isArray(conflicts) ? conflicts : []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -61,6 +75,7 @@ export function EventDetail({ eventId, onClose, onUpdated }) {
   // Load inventory catalog once
   useEffect(() => {
     inventoryApi.list().then(setCatalogItems).catch(() => {});
+    setsApi.list().then(setCatalogSets).catch(() => {});
   }, []);
 
   const handleStatusChange = async (status) => {
@@ -189,6 +204,48 @@ export function EventDetail({ eventId, onClose, onUpdated }) {
     finally { setGeneratingQuote(false); }
   };
 
+  // Apply an equipment set to this event
+  const handleApplySet = async (setId) => {
+    if (!setId) return;
+    try {
+      const result = await setsApi.applyToEvent(setId, eventId, {
+        rental_days: 1
+      });
+      if (result.conflicts && result.conflicts.length > 0) {
+        alert(`Set angewendet: ${result.inserted} Artikel hinzugefügt.\n\nKonflikte (nicht hinzugefügt):\n` +
+          result.conflicts.map(c => `${c.item_name}: nur ${c.available} verfügbar`).join('\n'));
+      }
+      await load(); // refresh to get updated inventory_items
+    } catch (err) { alert('Fehler: ' + err.message); }
+  };
+
+  // Sub-rental handlers
+  const handleAddSubrental = async (e) => {
+    e.preventDefault();
+    if (!newSr.item_name.trim()) return;
+    setAddingSr(true);
+    try {
+      const sr = await subrentalApi.create(eventId, newSr);
+      setSubrentals(prev => [...prev, sr]);
+      setNewSr({ item_name: '', quantity: 1, rental_cost: 0, rental_days: 1 });
+    } catch (err) { alert('Fehler: ' + err.message); }
+    finally { setAddingSr(false); }
+  };
+
+  const handleUpdateSrStatus = async (sr, status) => {
+    try {
+      const updated = await subrentalApi.update(eventId, sr.id, { status });
+      setSubrentals(prev => prev.map(x => x.id === sr.id ? updated : x));
+    } catch (err) { alert('Fehler: ' + err.message); }
+  };
+
+  const handleDeleteSubrental = async (srId) => {
+    try {
+      await subrentalApi.delete(eventId, srId);
+      setSubrentals(prev => prev.filter(x => x.id !== srId));
+    } catch (err) { alert('Fehler: ' + err.message); }
+  };
+
   if (loading) {
     return (
       <div className="modal-backdrop">
@@ -275,6 +332,12 @@ export function EventDetail({ eventId, onClose, onUpdated }) {
                           <span style={{ flex: 1 }}>
                             <strong>{m.name}</strong>
                             {m.role && <span className="text-muted"> · {m.role}</span>}
+                            {crewConflicts.some(c => c.crew_member.id === m.id) && (
+                              <span title="Crew-Konflikt: Person ist zeitgleich für ein anderes Event eingeteilt"
+                                style={{ marginLeft: '.4rem', color: 'var(--color-danger)', fontSize: '.75rem' }}>
+                                ⚠️ Konflikt
+                              </span>
+                            )}
                           </span>
                           <label style={{ display: 'flex', alignItems: 'center', gap: '.3rem', fontSize: '.8rem', cursor: 'pointer' }}>
                             <input type="checkbox" checked={!!m.confirmed}
@@ -310,11 +373,16 @@ export function EventDetail({ eventId, onClose, onUpdated }) {
 
                 {/* Inventory items (catalog bookings) */}
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '.75rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '.75rem', flexWrap: 'wrap', gap: '.4rem' }}>
                     <p className="section-title" style={{ margin: 0 }}>Equipment aus Inventar</p>
-                    <button className="btn btn-ghost btn-sm" onClick={handleGenerateQuote} disabled={generatingQuote}>
-                      {generatingQuote ? 'Generiere…' : '📄 Angebot erstellen'}
-                    </button>
+                    <div style={{ display: 'flex', gap: '.4rem', flexWrap: 'wrap' }}>
+                      <button className="btn btn-ghost btn-sm" onClick={() => setShowPacking(true)}>
+                        📋 Packliste
+                      </button>
+                      <button className="btn btn-ghost btn-sm" onClick={handleGenerateQuote} disabled={generatingQuote}>
+                        {generatingQuote ? 'Generiere…' : '📄 Angebot'}
+                      </button>
+                    </div>
                   </div>
                   {event.inventory_items && event.inventory_items.length > 0 ? (
                     <ul className="materials-list" style={{ marginBottom: '.75rem' }}>
@@ -330,6 +398,19 @@ export function EventDetail({ eventId, onClose, onUpdated }) {
                       ))}
                     </ul>
                   ) : <p className="text-muted" style={{ marginBottom: '.75rem' }}>Noch kein Inventar gebucht</p>}
+
+                  {/* Set picker */}
+                  {catalogSets.length > 0 && (
+                    <div style={{ display: 'flex', gap: '.4rem', marginBottom: '.5rem', alignItems: 'center' }}>
+                      <select className="form-select" style={{ flex: '1 1 200px', fontSize: '.85rem' }}
+                        defaultValue=""
+                        onChange={e => { if (e.target.value) handleApplySet(e.target.value); e.target.value = ''; }}>
+                        <option value="">📦 Set anwenden…</option>
+                        {catalogSets.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
+                    </div>
+                  )}
+
                   {catalogItems.length > 0 && (
                     <form onSubmit={handleAddInventoryItem} style={{ display: 'flex', gap: '.4rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
                       <div style={{ flex: '2 1 200px' }}>
@@ -344,8 +425,8 @@ export function EventDetail({ eventId, onClose, onUpdated }) {
                         {availInfo && (
                           <div style={{ fontSize: '.72rem', marginTop: '.15rem', color: availInfo.available > 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>
                             {availInfo.available > 0
-                              ? `✓ ${availInfo.available} verfügbar (${availInfo.booked} reserviert)`
-                              : `✗ Nicht verfügbar (${availInfo.booked}/${availInfo.quantity} reserviert)`}
+                              ? `✓ ${availInfo.available} verfügbar (${availInfo.booked} reserviert${availInfo.in_repair > 0 ? `, ${availInfo.in_repair} in Reparatur` : ''})`
+                              : `✗ Nicht verfügbar (${availInfo.booked}/${availInfo.usable ?? availInfo.quantity} verfügbar)`}
                           </div>
                         )}
                       </div>
@@ -360,6 +441,47 @@ export function EventDetail({ eventId, onClose, onUpdated }) {
                       </button>
                     </form>
                   )}
+                </div>
+
+                {/* Sub-rental (Fremdmiete) */}
+                <div>
+                  <p className="section-title">Fremdmiete</p>
+                  {subrentals.length > 0 ? (
+                    <ul className="materials-list" style={{ marginBottom: '.75rem' }}>
+                      {subrentals.map(sr => (
+                        <li key={sr.id} className="material-item">
+                          <span style={{ flex: 1 }}>
+                            <strong>{sr.item_name}</strong>
+                            {sr.quantity > 1 && <span className="text-muted"> × {sr.quantity}</span>}
+                            {sr.supplier_name && <span className="text-muted"> · {sr.supplier_name}</span>}
+                          </span>
+                          <select className="form-select" style={{ fontSize: '.78rem', padding: '2px 4px', height: 'auto' }}
+                            value={sr.status}
+                            onChange={e => handleUpdateSrStatus(sr, e.target.value)}>
+                            {['angefragt','bestätigt','geliefert','zurückgegeben'].map(s => (
+                              <option key={s} value={s}>{s}</option>
+                            ))}
+                          </select>
+                          <button className="btn btn-ghost btn-sm"
+                            onClick={() => handleDeleteSubrental(sr.id)}>✕</button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : <p className="text-muted" style={{ marginBottom: '.75rem' }}>Keine Fremdmiete</p>}
+                  <form onSubmit={handleAddSubrental} style={{ display: 'flex', gap: '.4rem', flexWrap: 'wrap' }}>
+                    <input className="form-input" style={{ flex: '2 1 150px', fontSize: '.85rem' }}
+                      placeholder="Artikel" value={newSr.item_name}
+                      onChange={e => setNewSr(n => ({ ...n, item_name: e.target.value }))} />
+                    <input className="form-input" type="number" min="1" style={{ flex: '0 1 55px', fontSize: '.85rem' }}
+                      placeholder="Stk" value={newSr.quantity}
+                      onChange={e => setNewSr(n => ({ ...n, quantity: Number(e.target.value) }))} />
+                    <input className="form-input" type="number" min="1" style={{ flex: '0 1 55px', fontSize: '.85rem' }}
+                      placeholder="Tage" value={newSr.rental_days}
+                      onChange={e => setNewSr(n => ({ ...n, rental_days: Number(e.target.value) }))} />
+                    <button type="submit" className="btn btn-ghost btn-sm" disabled={addingSr}>
+                      + Fremdmiete
+                    </button>
+                  </form>
                 </div>
 
                 {/* Notes */}
@@ -464,6 +586,9 @@ export function EventDetail({ eventId, onClose, onUpdated }) {
       )}
       {openQuoteId && (
         <QuoteView quoteId={openQuoteId} onClose={() => setOpenQuoteId(null)} onUpdated={() => {}} />
+      )}
+      {showPacking && (
+        <PackingList eventId={eventId} onClose={() => setShowPacking(false)} />
       )}
     </>
   );

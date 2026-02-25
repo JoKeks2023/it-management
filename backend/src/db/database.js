@@ -331,6 +331,64 @@ function initializeDatabase() {
       unit_price  REAL    NOT NULL DEFAULT 0,
       total       REAL    NOT NULL DEFAULT 0
     );
+
+    -- ================================================================
+    -- EQUIPMENT SETS / PACKAGES  (Artikel-Sets)
+    -- Predefined bundles of inventory items (e.g. "DJ Standard Set").
+    -- ================================================================
+
+    CREATE TABLE IF NOT EXISTS equipment_sets (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      name        TEXT    NOT NULL,
+      description TEXT,
+      notes       TEXT,
+      created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+      updated_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
+    -- Items within a set (references the inventory catalog)
+    CREATE TABLE IF NOT EXISTS equipment_set_items (
+      id                INTEGER PRIMARY KEY AUTOINCREMENT,
+      set_id            INTEGER NOT NULL REFERENCES equipment_sets(id) ON DELETE CASCADE,
+      inventory_item_id INTEGER NOT NULL REFERENCES inventory_items(id) ON DELETE CASCADE,
+      quantity          INTEGER NOT NULL DEFAULT 1 CHECK(quantity > 0)
+    );
+
+    -- ================================================================
+    -- SUB-RENTAL / FREMDMIETE
+    -- Items borrowed from an external supplier for a specific event.
+    -- ================================================================
+
+    CREATE TABLE IF NOT EXISTS subrental_items (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      event_id     INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+      supplier_id  INTEGER REFERENCES contacts(id) ON DELETE SET NULL,
+      item_name    TEXT    NOT NULL,
+      quantity     INTEGER NOT NULL DEFAULT 1 CHECK(quantity > 0),
+      rental_cost  REAL    NOT NULL DEFAULT 0,  -- cost per unit per day
+      rental_days  INTEGER NOT NULL DEFAULT 1,
+      status       TEXT    NOT NULL DEFAULT 'angefragt'
+                           CHECK(status IN ('angefragt','bestätigt','geliefert','zurückgegeben')),
+      notes        TEXT
+    );
+
+    -- ================================================================
+    -- REPAIR / MAINTENANCE LOG  (Reparaturverwaltung)
+    -- Tracks defective / in-repair inventory, reduces available qty.
+    -- ================================================================
+
+    CREATE TABLE IF NOT EXISTS repair_logs (
+      id                INTEGER PRIMARY KEY AUTOINCREMENT,
+      inventory_item_id INTEGER NOT NULL REFERENCES inventory_items(id) ON DELETE CASCADE,
+      quantity_affected INTEGER NOT NULL DEFAULT 1 CHECK(quantity_affected > 0),
+      issue_description TEXT    NOT NULL,
+      status            TEXT    NOT NULL DEFAULT 'defekt'
+                                CHECK(status IN ('defekt','in-reparatur','repariert','abgeschrieben')),
+      reported_at       TEXT    NOT NULL DEFAULT (datetime('now')),
+      resolved_at       TEXT,
+      repair_cost       REAL,
+      notes             TEXT
+    );
   `);
 
   // -------------------------------------------------------------------
@@ -346,6 +404,7 @@ function initializeDatabase() {
 
   safeAddColumn('events', 'setup_date',    'TEXT');
   safeAddColumn('events', 'teardown_date', 'TEXT');
+  safeAddColumn('event_inventory_items', 'packed', 'INTEGER NOT NULL DEFAULT 0');
 }
 
 initializeDatabase();

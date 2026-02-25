@@ -110,6 +110,13 @@ router.get('/:id/availability', (req, res) => {
 
   const { date_from, date_to, exclude_event_id } = req.query;
 
+  // Count how many units are currently in repair (defekt / in-reparatur)
+  const { in_repair } = db.prepare(`
+    SELECT COALESCE(SUM(quantity_affected), 0) AS in_repair
+    FROM repair_logs
+    WHERE inventory_item_id = ? AND status IN ('defekt','in-reparatur')
+  `).get(item.id);
+
   // Sum of qty booked by events that overlap the requested date range
   let conflictQuery = `
     SELECT COALESCE(SUM(ei.quantity), 0) as booked
@@ -121,8 +128,6 @@ router.get('/:id/availability', (req, res) => {
   const cParams = [item.id];
 
   if (date_from && date_to) {
-    // overlap: event period overlaps [date_from, date_to]
-    // Use setup_date/teardown_date if present, otherwise event_date
     conflictQuery += `
       AND (
         COALESCE(e.teardown_date, e.event_date) >= ?
@@ -138,15 +143,99 @@ router.get('/:id/availability', (req, res) => {
   }
 
   const { booked } = db.prepare(conflictQuery).get(...cParams);
-  const available = item.quantity - booked;
+  const usable    = item.quantity - in_repair;
+  const available = Math.max(0, usable - booked);
 
   res.json({
     item_id:   item.id,
     name:      item.name,
     quantity:  item.quantity,
+    in_repair,
+    usable,
     booked,
-    available: Math.max(0, available)
+    available
   });
+});
+
+// ---------------------------------------------------------------------------
+// Repair / Maintenance log
+// GET    /inventory/:id/repairs       – list repair logs for an item
+// POST   /inventory/:id/repairs       – report a defect / start repair
+// PUT    /inventory/:id/repairs/:rId  – update repair (e.g. mark resolved)
+// DELETE /inventory/:id/repairs/:rId  – delete repair entry
+// ---------------------------------------------------------------------------
+const REPAIR_STATUSES = ['defekt','in-reparatur','repariert','abgeschrieben'];
+
+router.get('/:id/repairs', (req, res) => {
+  const item = db.prepare('SELECT id FROM inventory_items WHERE id = ?').get(req.params.id);
+  if (!item) return res.status(404).json({ error: 'Item not found' });
+
+  const rows = db.prepare(
+    'SELECT * FROM repair_logs WHERE inventory_item_id = ? ORDER BY reported_at DESC'
+  ).all(req.params.id);
+
+  res.json(rows);
+});
+
+router.post('/:id/repairs', (req, res) => {
+  const item = db.prepare('SELECT * FROM inventory_items WHERE id = ?').get(req.params.id);
+  if (!item) return res.status(404).json({ error: 'Item not found' });
+
+  const { quantity_affected = 1, issue_description, status = 'defekt',
+          repair_cost, notes } = req.body;
+
+  if (!issue_description || !issue_description.trim())
+    return res.status(400).json({ error: 'issue_description is required' });
+  if (!REPAIR_STATUSES.includes(status))
+    return res.status(400).json({ error: `Invalid status. Must be one of: ${REPAIR_STATUSES.join(', ')}` });
+  if (quantity_affected > item.quantity)
+    return res.status(400).json({ error: `quantity_affected cannot exceed item quantity (${item.quantity})` });
+
+  const result = db.prepare(`
+    INSERT INTO repair_logs (inventory_item_id, quantity_affected, issue_description, status, repair_cost, notes)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(item.id, quantity_affected, issue_description.trim(), status,
+         repair_cost || null, notes || null);
+
+  res.status(201).json(db.prepare('SELECT * FROM repair_logs WHERE id = ?').get(result.lastInsertRowid));
+});
+
+router.put('/:id/repairs/:rId', (req, res) => {
+  const r = db.prepare('SELECT * FROM repair_logs WHERE id = ? AND inventory_item_id = ?').get(req.params.rId, req.params.id);
+  if (!r) return res.status(404).json({ error: 'Repair log not found' });
+
+  const { status, issue_description, quantity_affected, repair_cost, notes, resolved_at } = req.body;
+  if (status && !REPAIR_STATUSES.includes(status))
+    return res.status(400).json({ error: 'Invalid status' });
+
+  const n = (v, old) => v !== undefined ? v : old;
+  const newStatus = n(status, r.status);
+  const isResolved = ['repariert','abgeschrieben'].includes(newStatus);
+
+  db.prepare(`
+    UPDATE repair_logs SET
+      status = ?, issue_description = ?, quantity_affected = ?,
+      repair_cost = ?, notes = ?,
+      resolved_at = ?
+    WHERE id = ?
+  `).run(
+    newStatus,
+    issue_description !== undefined ? issue_description.trim() : r.issue_description,
+    n(quantity_affected, r.quantity_affected),
+    n(repair_cost, r.repair_cost),
+    n(notes, r.notes),
+    resolved_at !== undefined ? resolved_at : (isResolved && !r.resolved_at ? new Date().toISOString() : r.resolved_at),
+    req.params.rId
+  );
+
+  res.json(db.prepare('SELECT * FROM repair_logs WHERE id = ?').get(req.params.rId));
+});
+
+router.delete('/:id/repairs/:rId', (req, res) => {
+  const r = db.prepare('SELECT id FROM repair_logs WHERE id = ? AND inventory_item_id = ?').get(req.params.rId, req.params.id);
+  if (!r) return res.status(404).json({ error: 'Repair log not found' });
+  db.prepare('DELETE FROM repair_logs WHERE id = ?').run(req.params.rId);
+  res.json({ message: 'Repair log deleted' });
 });
 
 module.exports = router;

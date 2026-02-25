@@ -14,12 +14,79 @@ function fmtDate(str) {
   return new Date(str).toLocaleDateString('de-DE', { dateStyle: 'short' });
 }
 
+function NewQuoteModal({ onSave, onClose }) {
+  const [form, setForm] = useState({ quote_type: 'Angebot', client_name: '', client_address: '', valid_until: '', tax_rate: 19, notes: '' });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const saved = await quotesApi.create({ ...form, tax_rate: Number(form.tax_rate) });
+      onSave(saved);
+    } catch (err) { setError(err.message); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ maxWidth: 500 }}>
+        <div className="modal-header">
+          <h2>Neues Dokument</h2>
+          <button className="btn-icon" onClick={onClose}>✕</button>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="modal-body">
+            {error && <div className="error-msg">{error}</div>}
+            <div className="form-grid">
+              <div className="form-group">
+                <label className="form-label">Typ</label>
+                <select className="form-select" value={form.quote_type} onChange={e => set('quote_type', e.target.value)}>
+                  {QUOTE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">MwSt. (%)</label>
+                <input className="form-input" type="number" min="0" max="100" value={form.tax_rate}
+                  onChange={e => set('tax_rate', e.target.value)} />
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Kunde</label>
+              <input className="form-input" value={form.client_name} onChange={e => set('client_name', e.target.value)} placeholder="Kundenname" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Adresse</label>
+              <textarea className="form-textarea" rows={2} value={form.client_address} onChange={e => set('client_address', e.target.value)} placeholder="Straße, PLZ, Ort" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Gültig bis</label>
+              <input className="form-input" type="date" value={form.valid_until} onChange={e => set('valid_until', e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Notizen</label>
+              <textarea className="form-textarea" rows={2} value={form.notes} onChange={e => set('notes', e.target.value)} />
+            </div>
+          </div>
+          <div className="modal-footer">
+            <button type="button" className="btn btn-ghost" onClick={onClose}>Abbrechen</button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Erstelle…' : 'Erstellen'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export function QuotesPage() {
   const [quotes,     setQuotes]     = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState('');
   const [filters,    setFilters]    = useState({ quote_type: '', status: '' });
   const [selectedId, setSelectedId] = useState(null);
+  const [showCreate, setShowCreate] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -36,6 +103,12 @@ export function QuotesPage() {
   useEffect(() => { load(); }, [load]);
 
   const setFilter = (key, val) => setFilters(f => ({ ...f, [key]: val }));
+
+  const handleCreated = (q) => {
+    setShowCreate(false);
+    setQuotes(prev => [q, ...prev]);
+    setSelectedId(q.id);
+  };
 
   const handleUpdated = (updated) => {
     setQuotes(prev => prev.map(q => q.id === updated.id ? { ...q, ...updated } : q));
@@ -103,6 +176,9 @@ export function QuotesPage() {
         </select>
         <button className="btn btn-ghost btn-sm"
           onClick={() => setFilters({ quote_type: '', status: '' })}>✕ Reset</button>
+        <button className="btn btn-primary ml-auto" onClick={() => setShowCreate(true)}>
+          + Neues Dokument
+        </button>
       </div>
 
       {error && <div className="error-msg">{error}</div>}
@@ -151,6 +227,9 @@ export function QuotesPage() {
 
       {selectedId && (
         <QuoteView quoteId={selectedId} onClose={() => setSelectedId(null)} onUpdated={handleUpdated} />
+      )}
+      {showCreate && (
+        <NewQuoteModal onSave={handleCreated} onClose={() => setShowCreate(false)} />
       )}
     </div>
   );
