@@ -1,28 +1,28 @@
-# IT Management System – Ausführliche Dokumentation
+# 🖥️ IT Management System – Ausführliche Dokumentation
 
-> Diese Dokumentation erklärt jeden Teil des Systems im Detail, sodass du es als alleiniger Entwickler vollständig verstehen, warten und erweitern kannst.
-
----
-
-## Inhaltsverzeichnis
-
-1. [Systemübersicht](#1-systemübersicht)
-2. [Datenbankstruktur](#2-datenbankstruktur)
-3. [Backend – API-Endpunkte](#3-backend--api-endpunkte)
-4. [Backend – Datei-Upload](#4-backend--datei-upload)
-5. [Shelf API Integration](#5-shelf-api-integration)
-6. [Frontend – Komponenten](#6-frontend--komponenten)
-7. [Frontend – API-Service](#7-frontend--api-service)
-8. [Konfiguration & Umgebungsvariablen](#8-konfiguration--umgebungsvariablen)
-9. [Deployment auf Raspberry Pi / Proxmox](#9-deployment-auf-raspberry-pi--proxmox)
-10. [Neue Features hinzufügen](#10-neue-features-hinzufügen)
-11. [Sicherheitshinweise](#11-sicherheitshinweise)
-12. [Events-Modul](#12-events-modul)
-13. [Netzwerk-Modul](#13-netzwerk-modul)
+> 📖 Diese Dokumentation erklärt jeden Teil des Systems im Detail, sodass du es als alleiniger Entwickler vollständig verstehen, warten und erweitern kannst.
 
 ---
 
-## 1. Systemübersicht
+## 📋 Inhaltsverzeichnis
+
+1. [🏛️ Systemübersicht](#1-systemübersicht)
+2. [🗄️ Datenbankstruktur](#2-datenbankstruktur)
+3. [🔌 Backend – API-Endpunkte](#3-backend--api-endpunkte)
+4. [📎 Backend – Datei-Upload](#4-backend--datei-upload)
+5. [🔗 Shelf API Integration](#5-shelf-api-integration)
+6. [🧩 Frontend – Komponenten](#6-frontend--komponenten)
+7. [📡 Frontend – API-Service](#7-frontend--api-service)
+8. [⚙️ Konfiguration & Umgebungsvariablen](#8-konfiguration--umgebungsvariablen)
+9. [🚢 Deployment auf Raspberry Pi / Proxmox](#9-deployment-auf-raspberry-pi--proxmox)
+10. [🔧 Neue Features hinzufügen](#10-neue-features-hinzufügen)
+11. [🔒 Sicherheitshinweise](#11-sicherheitshinweise)
+12. [🎵 Events-Modul](#12-events-modul)
+13. [🌐 Netzwerk-Modul](#13-netzwerk-modul)
+
+---
+
+## 1. 🏛️ Systemübersicht
 
 Das System besteht aus zwei unabhängigen Teilen:
 
@@ -39,14 +39,14 @@ Browser (React)  ←→  Express Backend (Node.js)  ←→  SQLite DB
 ### Warum SQLite?
 
 SQLite ist ideal für persönliche / lokale Anwendungen:
-- Keine Installation eines separaten DB-Servers
-- Einfaches Backup (eine einzelne `.db`-Datei kopieren)
-- Hohe Leseperformance dank WAL-Modus
-- Perfekt für ein einzelnes Instanzsystem ohne Concurrent Writes
+- ✅ Keine Installation eines separaten DB-Servers
+- ✅ Einfaches Backup (eine einzelne `.db`-Datei kopieren)
+- ✅ Hohe Leseperformance dank WAL-Modus
+- ✅ Perfekt für ein einzelnes Instanzsystem ohne Concurrent Writes
 
 ---
 
-## 2. Datenbankstruktur
+## 2. 🗄️ Datenbankstruktur
 
 Die Datenbank wird automatisch beim ersten Start des Backends erstellt unter `backend/data/tickets.db`.
 
@@ -101,7 +101,7 @@ Die Datenbank wird automatisch beim ersten Start des Backends erstellt unter `ba
 
 ---
 
-## 3. Backend – API-Endpunkte
+## 3. 🔌 Backend – API-Endpunkte
 
 Alle Endpunkte sind unter `http://localhost:3001` erreichbar.
 
@@ -284,11 +284,11 @@ Lädt eine oder mehrere Dateien zu einem Ticket hoch.
 **Form-Feld:** `files` (multiple)
 
 **Erlaubte Dateitypen:**
-- PDF (`application/pdf`)
-- Bilder (JPEG, PNG, GIF, WebP)
-- Textdateien
-- Word-Dokumente (`.doc`, `.docx`)
-- Excel-Dateien (`.xls`, `.xlsx`)
+- 📄 PDF (`application/pdf`)
+- 🖼️ Bilder (JPEG, PNG, GIF, WebP)
+- 📝 Textdateien
+- 📃 Word-Dokumente (`.doc`, `.docx`)
+- 📊 Excel-Dateien (`.xls`, `.xlsx`)
 
 **Maximale Dateigröße:** 10 MB (konfigurierbar via `MAX_FILE_SIZE`)
 
@@ -327,7 +327,7 @@ Gibt Details zu einem einzelnen Shelf Asset zurück.
 
 ---
 
-## 4. Backend – Datei-Upload
+## 4. 📎 Backend – Datei-Upload
 
 Uploads werden via **Multer** verwaltet:
 
@@ -353,7 +353,7 @@ MAX_FILE_SIZE=10485760     # 10 MB in Bytes
 
 ---
 
-## 5. Shelf API Integration
+## 5. 🔗 Shelf API Integration
 
 [Shelf.nu](https://shelf.nu) ist ein Asset-Management-System. Das Backend proxied Shelf-API-Anfragen, damit der API-Token nicht im Browser exponiert wird.
 
@@ -379,11 +379,11 @@ Wenn du im Frontend ein Ticket erstellst oder bearbeitest:
 
 ### Ohne Shelf API
 
-Wenn kein Token konfiguriert ist, wird das Asset-Feld als einfaches Textfeld angezeigt. Alle anderen Funktionen arbeiten normal.
+> 💡 Wenn kein Token konfiguriert ist, wird das Asset-Feld als einfaches Textfeld angezeigt. Alle anderen Funktionen arbeiten normal.
 
 ---
 
-## 6. Frontend – Komponenten
+## 6. 🧩 Frontend – Komponenten
 
 ### `src/pages/Dashboard.jsx`
 
@@ -451,6 +451,98 @@ Wiederverwendbare Materialliste.
 
 ---
 
+### `src/components/EventForm.jsx`
+
+Modal-Formular für Erstellen und Bearbeiten von Events.
+
+**Props:**
+- `event` – `null` für neues Event, Event-Objekt für Bearbeitung
+- `onSave(event)` – Callback nach erfolgreichem Speichern
+- `onClose()` – Callback zum Schließen
+
+**Felder:**
+- Titel (Pflichtfeld)
+- Event-Typ (DJ, Netzwerk-Setup, Sonstiges)
+- Kundenname & Kontakt
+- Veranstaltungsort
+- Datum, Startzeit, Endzeit
+- Materialien (Freitext)
+- Preisschätzung & Zahlungsstatus
+- Equipment-Liste (mit optionalem Shelf-Dropdown)
+- Notizen
+
+---
+
+### `src/components/EventDetail.jsx`
+
+Detail-Modal für ein geöffnetes Event. Zeigt:
+
+- Alle Event-Metadaten (Typ, Kunde, Ort, Datum, Zeiten)
+- Equipment-Liste mit Reservierungs-Checkboxen
+- Anhänge mit Download-Links und Lösch-Button
+- Datei-Upload (z.B. Verträge, Setlisten)
+- Schnell-Status-Änderung (Buttons für jeden Status)
+- Zahlungsstatus-Änderung
+- Änderungsverlauf (History)
+
+**Inline bearbeitbar:** Status, Zahlungsstatus und Equipment können direkt im Modal geändert werden.
+
+---
+
+### `src/components/NetworkTopology.jsx`
+
+Interaktive Netzwerktopologie-Visualisierung basierend auf `@xyflow/react`.
+
+**Features:**
+- **Drag & Drop** – Geräte positionieren (Position wird automatisch gespeichert)
+- **Klick auf Node** – öffnet den Port-Manager für das Gerät
+- **Zoom & Pan** – für große Netzwerke
+- **MiniMap** – Übersichtskarte
+- **Farbkodierung** nach Gerätetyp (Router, Switch, Access Point, etc.)
+
+**Geräte-Icons:**
+
+| Gerätetyp | Icon |
+|-----------|------|
+| Router | 🔀 |
+| Switch | 🔀 |
+| Access Point | 📡 |
+| Firewall | 🛡️ |
+| Server | 🖥️ |
+| Patchpanel | 🔌 |
+| Sonstiges | 📦 |
+
+---
+
+### `src/components/NetworkDeviceForm.jsx`
+
+Formular für das Anlegen und Bearbeiten von Netzwerkgeräten.
+
+**Felder:**
+- Name (Pflichtfeld)
+- Gerätetyp (Router / Switch / Access Point / Patchpanel / Firewall / Server / Sonstiges)
+- Hersteller & Modell
+- IP-Adresse & MAC-Adresse
+- Standort
+- Rack-Zuordnung (optional)
+- Notizen
+
+---
+
+### `src/components/PortManager.jsx`
+
+Port-Verwaltungs-Modal für ein einzelnes Netzwerkgerät.
+
+**Zeigt:**
+- Alle Ports des Geräts mit Nummer, Label, Geschwindigkeit, Status
+- VLAN-Zuweisung und PoE-Status
+- Verbindungen zu anderen Geräten (mit Link zum Zielgerät)
+- Port hinzufügen / bearbeiten / löschen
+
+**Inline-Editierung:** Klick auf einen Port öffnet ein Inline-Formular für schnelle Änderungen.
+
+---
+
 ### `src/components/StatusBadge.jsx`
 
 Einfache Komponente zur Anzeige eines farbigen Status- oder Prioritäts-Badge.
@@ -488,7 +580,7 @@ await ticketsApi.uploadAttachments(1, formData);
 
 ---
 
-## 7. Frontend – API-Service
+## 7. 📡 Frontend – API-Service
 
 ### Fehlerbehandlung
 
@@ -516,7 +608,7 @@ VITE_API_URL=http://192.168.1.100:3001
 
 ---
 
-## 8. Konfiguration & Umgebungsvariablen
+## 8. ⚙️ Konfiguration & Umgebungsvariablen
 
 ### Backend (`backend/.env`)
 
@@ -547,7 +639,7 @@ VITE_API_URL=http://localhost:3001
 
 ---
 
-## 9. Deployment auf Raspberry Pi / Proxmox
+## 9. 🚢 Deployment auf Raspberry Pi / Proxmox
 
 ### Voraussetzungen
 
@@ -658,7 +750,7 @@ crontab -e
 
 ---
 
-## 10. Neue Features hinzufügen
+## 10. 🔧 Neue Features hinzufügen
 
 ### Neues Ticket-Feld hinzufügen (Beispiel: `due_date`)
 
@@ -751,18 +843,22 @@ import QRCode from 'qrcode.react';
 
 ---
 
-## 11. Sicherheitshinweise
+## 11. 🔒 Sicherheitshinweise
 
-- **Kein Passwortschutz** – das System ist für lokale Nutzung im Heimnetzwerk gedacht. Nicht ohne Authentifizierung ins Internet exponieren.
-- **CORS** – nur die konfigurierte Frontend-URL darf Anfragen senden (s. `FRONTEND_URL`).
-- **Datei-Uploads** – erlaubte MIME-Typen sind eingeschränkt. Ausführbare Dateien werden abgelehnt.
-- **Dateinamen** – auf Disk werden UUID-basierte Namen verwendet (kein Path Traversal möglich).
-- **SQLite-Injection** – alle Datenbankzugriffe nutzen Prepared Statements (kein SQL Injection möglich).
-- **Shelf API Token** – wird nur server-seitig verwendet, nie an den Browser gesendet.
+> ⚠️ **Wichtig:** Das System ist für lokale Nutzung im Heimnetzwerk konzipiert. Nicht ohne zusätzliche Absicherung ins öffentliche Internet exponieren!
+
+| Bereich | Maßnahme |
+|---------|----------|
+| 🔑 Passwortschutz | Kein eingebaut – optional via `express-basic-auth` nachrüsten |
+| 🌍 CORS | Nur konfigurierte `FRONTEND_URL` darf Anfragen senden |
+| 📤 Datei-Uploads | Erlaubte MIME-Typen eingeschränkt, ausführbare Dateien werden abgelehnt |
+| 📁 Dateinamen | UUID-basierte Namen auf Disk (kein Path Traversal möglich) |
+| 💉 SQL Injection | Alle DB-Zugriffe verwenden Prepared Statements |
+| 🔐 Shelf API Token | Nur server-seitig verwendet, nie an den Browser gesendet |
 
 ---
 
-## 12. Events-Modul
+## 12. 🎵 Events-Modul
 
 ### Überblick
 
@@ -910,7 +1006,7 @@ CREATE TABLE invoices (
 
 ---
 
-## 13. Netzwerk-Modul
+## 13. 🌐 Netzwerk-Modul
 
 ### Überblick
 
@@ -1098,14 +1194,16 @@ Das Frontend rendert diese Daten mit `@xyflow/react` als interaktiven Graph:
    .badge-NAS { background: #fce7f3; color: #be185d; }
    ```
 
-### Zukunftsideen
+### 🔮 Zukunftsideen
 
-- **SNMP Monitoring** – Echtzeit-Status via `snmp-native` Library abfragen
-- **Live Status Integration** – Ping/HTTP-Check alle 60s, Status-LED grün/rot
-- **Auto-Import aus UniFi API** – Geräte automatisch aus UniFi Controller importieren
-- **Export als PNG / PDF** – React Flow `toObject()` + html2canvas / jsPDF
-- **Netzwerk-Diagram als SVG** – für Dokumentations-Exports
-- **Alarme** – Email/Pushover wenn Gerät offline geht
+| Idee | Beschreibung |
+|------|-------------|
+| 📊 SNMP Monitoring | Echtzeit-Status via `snmp-native` Library abfragen |
+| 🟢 Live Status | Ping/HTTP-Check alle 60s, Status-LED grün/rot |
+| 📥 UniFi Auto-Import | Geräte automatisch aus UniFi Controller importieren |
+| 🖼️ Export PNG/PDF | React Flow `toObject()` + html2canvas / jsPDF |
+| 📐 SVG Diagram | Netzwerk-Diagram für Dokumentations-Exports |
+| 🔔 Alarme | E-Mail / Pushover wenn Gerät offline geht |
 
 ---
 
