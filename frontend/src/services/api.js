@@ -1,8 +1,45 @@
 // src/services/api.js
-// Central API service for communicating with the backend.
-// All fetch calls go through this module so the base URL is managed in one place.
+// Central API service with caching, offline support, and error handling.
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
+// Connection status
+let isOnline = navigator.onLine;
+window.addEventListener('online', () => { isOnline = true; });
+window.addEventListener('offline', () => { isOnline = false; });
+
+// Cache utilities
+const CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
+
+function getCacheKey(endpoint, filters = {}) {
+  return `api_cache_${endpoint}_${JSON.stringify(filters || {})}`;
+}
+
+function getFromCache(key) {
+  try {
+    const item = localStorage.getItem(key);
+    if (!item) return null;
+    const { data, expiry } = JSON.parse(item);
+    if (Date.now() > expiry) {
+      localStorage.removeItem(key);
+      return null;
+    }
+    return data;
+  } catch (e) {
+    return null;
+  }
+}
+
+function saveToCache(key, data) {
+  try {
+    localStorage.setItem(key, JSON.stringify({
+      data,
+      expiry: Date.now() + CACHE_EXPIRY
+    }));
+  } catch (e) {
+    console.warn('Failed to save to localStorage:', e);
+  }
+}
 
 async function handleResponse(res) {
   const contentType = res.headers.get('content-type') || '';
@@ -10,9 +47,33 @@ async function handleResponse(res) {
   const body = isJson ? await res.json() : await res.text();
   if (!res.ok) {
     const message = isJson ? (body.error || JSON.stringify(body)) : body;
-    throw new Error(message || `HTTP ${res.status}`);
+    const error = new Error(message || `HTTP ${res.status}`);
+    error.status = res.status;
+    throw error;
   }
   return body;
+}
+
+async function fetchWithFallback(url, options = {}, cacheKey = null) {
+  try {
+    const res = await fetch(url, { ...options, timeout: 10000 });
+    const data = await handleResponse(res);
+    if (cacheKey) saveToCache(cacheKey, data);
+    return data;
+  } catch (error) {
+    if (cacheKey) {
+      const cached = getFromCache(cacheKey);
+      if (cached) {
+        console.warn(`Using cached data for ${url}`);
+        return cached;
+      }
+    }
+    throw error;
+  }
+}
+
+export function isApiOnline() {
+  return isOnline;
 }
 
 // ---------------------------------------------------------------------------
@@ -24,11 +85,15 @@ export const ticketsApi = {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([k, v]) => { if (v) params.append(k, v); });
     const query = params.toString() ? `?${params}` : '';
-    return fetch(`${BASE_URL}/tickets${query}`).then(handleResponse);
+    const cacheKey = getCacheKey('/tickets', filters);
+    return fetchWithFallback(`${BASE_URL}/tickets${query}`, {}, cacheKey);
   },
 
   /** Get a single ticket with materials, attachments, and history */
-  get: (id) => fetch(`${BASE_URL}/tickets/${id}`).then(handleResponse),
+  get: (id) => {
+    const cacheKey = getCacheKey(`/tickets/${id}`);
+    return fetchWithFallback(`${BASE_URL}/tickets/${id}`, {}, cacheKey);
+  },
 
   /** Create a new ticket */
   create: (data) =>
@@ -74,11 +139,15 @@ export const assetsApi = {
   /** List assets from Shelf, optionally filtered by search string */
   list: (search = '') => {
     const query = search ? `?search=${encodeURIComponent(search)}` : '';
-    return fetch(`${BASE_URL}/assets${query}`).then(handleResponse);
+    const cacheKey = getCacheKey('/assets', { search });
+    return fetchWithFallback(`${BASE_URL}/assets${query}`, {}, cacheKey);
   },
 
   /** Get a single asset by its Shelf ID */
-  get: (id) => fetch(`${BASE_URL}/assets/${id}`).then(handleResponse)
+  get: (id) => {
+    const cacheKey = getCacheKey(`/assets/${id}`);
+    return fetchWithFallback(`${BASE_URL}/assets/${id}`, {}, cacheKey);
+  }
 };
 
 // ---------------------------------------------------------------------------
@@ -90,14 +159,21 @@ export const eventsApi = {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([k, v]) => { if (v) params.append(k, v); });
     const query = params.toString() ? `?${params}` : '';
-    return fetch(`${BASE_URL}/events${query}`).then(handleResponse);
+    const cacheKey = getCacheKey('/events', filters);
+    return fetchWithFallback(`${BASE_URL}/events${query}`, {}, cacheKey);
   },
 
   /** Get the next upcoming events */
-  upcoming: () => fetch(`${BASE_URL}/events/upcoming`).then(handleResponse),
+  upcoming: () => {
+    const cacheKey = getCacheKey('/events/upcoming');
+    return fetchWithFallback(`${BASE_URL}/events/upcoming`, {}, cacheKey);
+  },
 
   /** Get a single event with equipment, attachments, and history */
-  get: (id) => fetch(`${BASE_URL}/events/${id}`).then(handleResponse),
+  get: (id) => {
+    const cacheKey = getCacheKey(`/events/${id}`);
+    return fetchWithFallback(`${BASE_URL}/events/${id}`, {}, cacheKey);
+  },
 
   /** Create a new event */
   create: (data) =>
@@ -153,11 +229,15 @@ export const contactsApi = {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([k, v]) => { if (v) params.append(k, v); });
     const query = params.toString() ? `?${params}` : '';
-    return fetch(`${BASE_URL}/contacts${query}`).then(handleResponse);
+    const cacheKey = getCacheKey('/contacts', filters);
+    return fetchWithFallback(`${BASE_URL}/contacts${query}`, {}, cacheKey);
   },
 
   /** Get a single contact */
-  get: (id) => fetch(`${BASE_URL}/contacts/${id}`).then(handleResponse),
+  get: (id) => {
+    const cacheKey = getCacheKey(`/contacts/${id}`);
+    return fetchWithFallback(`${BASE_URL}/contacts/${id}`, {}, cacheKey);
+  },
 
   /** Create a contact */
   create: (data) =>
@@ -208,10 +288,17 @@ export const inventoryApi = {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([k, v]) => { if (v) params.append(k, v); });
     const query = params.toString() ? `?${params}` : '';
-    return fetch(`${BASE_URL}/inventory${query}`).then(handleResponse);
+    const cacheKey = getCacheKey('/inventory', filters);
+    return fetchWithFallback(`${BASE_URL}/inventory${query}`, {}, cacheKey);
   },
-  categories: () => fetch(`${BASE_URL}/inventory/categories`).then(handleResponse),
-  get: (id) => fetch(`${BASE_URL}/inventory/${id}`).then(handleResponse),
+  categories: () => {
+    const cacheKey = getCacheKey('/inventory/categories');
+    return fetchWithFallback(`${BASE_URL}/inventory/categories`, {}, cacheKey);
+  },
+  get: (id) => {
+    const cacheKey = getCacheKey(`/inventory/${id}`);
+    return fetchWithFallback(`${BASE_URL}/inventory/${id}`, {}, cacheKey);
+  },
   create: (data) =>
     fetch(`${BASE_URL}/inventory`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
@@ -263,9 +350,13 @@ export const quotesApi = {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([k, v]) => { if (v) params.append(k, v); });
     const query = params.toString() ? `?${params}` : '';
-    return fetch(`${BASE_URL}/quotes${query}`).then(handleResponse);
+    const cacheKey = getCacheKey('/quotes', filters);
+    return fetchWithFallback(`${BASE_URL}/quotes${query}`, {}, cacheKey);
   },
-  get: (id) => fetch(`${BASE_URL}/quotes/${id}`).then(handleResponse),
+  get: (id) => {
+    const cacheKey = getCacheKey(`/quotes/${id}`);
+    return fetchWithFallback(`${BASE_URL}/quotes/${id}`, {}, cacheKey);
+  },
   create: (data) =>
     fetch(`${BASE_URL}/quotes`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
@@ -295,8 +386,14 @@ export const quotesApi = {
 // Equipment Sets / Packages
 // ---------------------------------------------------------------------------
 export const setsApi = {
-  list: () => fetch(`${BASE_URL}/sets`).then(handleResponse),
-  get:  (id) => fetch(`${BASE_URL}/sets/${id}`).then(handleResponse),
+  list: () => {
+    const cacheKey = getCacheKey('/sets');
+    return fetchWithFallback(`${BASE_URL}/sets`, {}, cacheKey);
+  },
+  get:  (id) => {
+    const cacheKey = getCacheKey(`/sets/${id}`);
+    return fetchWithFallback(`${BASE_URL}/sets/${id}`, {}, cacheKey);
+  },
   create: (data) =>
     fetch(`${BASE_URL}/sets`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
@@ -343,11 +440,26 @@ export const subrentalApi = {
 // Reports & Statistics
 // ---------------------------------------------------------------------------
 export const reportsApi = {
-  overview:  () => fetch(`${BASE_URL}/reports/overview`).then(handleResponse),
-  revenue:   (months = 12) => fetch(`${BASE_URL}/reports/revenue?months=${months}`).then(handleResponse),
-  equipment: (limit = 10)  => fetch(`${BASE_URL}/reports/equipment?limit=${limit}`).then(handleResponse),
-  crew:      (limit = 10)  => fetch(`${BASE_URL}/reports/crew?limit=${limit}`).then(handleResponse),
-  events:    (months = 12) => fetch(`${BASE_URL}/reports/events?months=${months}`).then(handleResponse)
+  overview:  () => {
+    const cacheKey = getCacheKey('/reports/overview');
+    return fetchWithFallback(`${BASE_URL}/reports/overview`, {}, cacheKey);
+  },
+  revenue:   (months = 12) => {
+    const cacheKey = getCacheKey(`/reports/revenue`, { months });
+    return fetchWithFallback(`${BASE_URL}/reports/revenue?months=${months}`, {}, cacheKey);
+  },
+  equipment: (limit = 10)  => {
+    const cacheKey = getCacheKey(`/reports/equipment`, { limit });
+    return fetchWithFallback(`${BASE_URL}/reports/equipment?limit=${limit}`, {}, cacheKey);
+  },
+  crew:      (limit = 10)  => {
+    const cacheKey = getCacheKey(`/reports/crew`, { limit });
+    return fetchWithFallback(`${BASE_URL}/reports/crew?limit=${limit}`, {}, cacheKey);
+  },
+  events:    (months = 12) => {
+    const cacheKey = getCacheKey(`/reports/events`, { months });
+    return fetchWithFallback(`${BASE_URL}/reports/events?months=${months}`, {}, cacheKey);
+  }
 };
 
 // ---------------------------------------------------------------------------
@@ -359,11 +471,15 @@ export const portfolioApi = {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([k, v]) => { if (v) params.append(k, v); });
     const query = params.toString() ? `?${params}` : '';
-    return fetch(`${BASE_URL}/portfolio${query}`).then(handleResponse);
+    const cacheKey = getCacheKey('/portfolio', filters);
+    return fetchWithFallback(`${BASE_URL}/portfolio${query}`, {}, cacheKey);
   },
 
   /** Get a single portfolio item with its media list */
-  get: (id) => fetch(`${BASE_URL}/portfolio/${id}`).then(handleResponse),
+  get: (id) => {
+    const cacheKey = getCacheKey(`/portfolio/${id}`);
+    return fetchWithFallback(`${BASE_URL}/portfolio/${id}`, {}, cacheKey);
+  },
 
   /** Create a new portfolio item */
   create: (data) =>
@@ -404,10 +520,16 @@ export const portfolioApi = {
 // ---------------------------------------------------------------------------
 export const networkApi = {
   // --- Topology ---
-  topology: () => fetch(`${BASE_URL}/network/topology`).then(handleResponse),
+  topology: () => {
+    const cacheKey = getCacheKey('/network/topology');
+    return fetchWithFallback(`${BASE_URL}/network/topology`, {}, cacheKey);
+  },
 
   // --- Racks ---
-  listRacks: () => fetch(`${BASE_URL}/network/racks`).then(handleResponse),
+  listRacks: () => {
+    const cacheKey = getCacheKey('/network/racks');
+    return fetchWithFallback(`${BASE_URL}/network/racks`, {}, cacheKey);
+  },
   createRack: (data) =>
     fetch(`${BASE_URL}/network/racks`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
@@ -420,8 +542,14 @@ export const networkApi = {
     fetch(`${BASE_URL}/network/racks/${id}`, { method: 'DELETE' }).then(handleResponse),
 
   // --- Devices ---
-  listDevices: () => fetch(`${BASE_URL}/network/devices`).then(handleResponse),
-  getDevice: (id) => fetch(`${BASE_URL}/network/devices/${id}`).then(handleResponse),
+  listDevices: () => {
+    const cacheKey = getCacheKey('/network/devices');
+    return fetchWithFallback(`${BASE_URL}/network/devices`, {}, cacheKey);
+  },
+  getDevice: (id) => {
+    const cacheKey = getCacheKey(`/network/devices/${id}`);
+    return fetchWithFallback(`${BASE_URL}/network/devices/${id}`, {}, cacheKey);
+  },
   createDevice: (data) =>
     fetch(`${BASE_URL}/network/devices`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
@@ -457,9 +585,13 @@ export const projectsApi = {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([k, v]) => { if (v) params.append(k, v); });
     const query = params.toString() ? `?${params}` : '';
-    return fetch(`${BASE_URL}/projects${query}`).then(handleResponse);
+    const cacheKey = getCacheKey('/projects', filters);
+    return fetchWithFallback(`${BASE_URL}/projects${query}`, {}, cacheKey);
   },
-  get: (id) => fetch(`${BASE_URL}/projects/${id}`).then(handleResponse),
+  get: (id) => {
+    const cacheKey = getCacheKey(`/projects/${id}`);
+    return fetchWithFallback(`${BASE_URL}/projects/${id}`, {}, cacheKey);
+  },
   create: (data) => fetch(`${BASE_URL}/projects`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
   }).then(handleResponse),
@@ -485,8 +617,14 @@ export const projectsApi = {
 // Templates
 // ---------------------------------------------------------------------------
 export const templatesApi = {
-  list: () => fetch(`${BASE_URL}/templates`).then(handleResponse),
-  get: (id) => fetch(`${BASE_URL}/templates/${id}`).then(handleResponse),
+  list: () => {
+    const cacheKey = getCacheKey('/templates');
+    return fetchWithFallback(`${BASE_URL}/templates`, {}, cacheKey);
+  },
+  get: (id) => {
+    const cacheKey = getCacheKey(`/templates/${id}`);
+    return fetchWithFallback(`${BASE_URL}/templates/${id}`, {}, cacheKey);
+  },
   create: (data) => fetch(`${BASE_URL}/templates`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
   }).then(handleResponse),
@@ -500,9 +638,18 @@ export const templatesApi = {
 // Maintenance
 // ---------------------------------------------------------------------------
 export const maintenanceApi = {
-  list: () => fetch(`${BASE_URL}/maintenance`).then(handleResponse),
-  due: () => fetch(`${BASE_URL}/maintenance/due`).then(handleResponse),
-  get: (id) => fetch(`${BASE_URL}/maintenance/${id}`).then(handleResponse),
+  list: () => {
+    const cacheKey = getCacheKey('/maintenance');
+    return fetchWithFallback(`${BASE_URL}/maintenance`, {}, cacheKey);
+  },
+  due: () => {
+    const cacheKey = getCacheKey('/maintenance/due');
+    return fetchWithFallback(`${BASE_URL}/maintenance/due`, {}, cacheKey);
+  },
+  get: (id) => {
+    const cacheKey = getCacheKey(`/maintenance/${id}`);
+    return fetchWithFallback(`${BASE_URL}/maintenance/${id}`, {}, cacheKey);
+  },
   create: (data) => fetch(`${BASE_URL}/maintenance`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
   }).then(handleResponse),
@@ -522,8 +669,14 @@ export const maintenanceApi = {
 // Light Presets
 // ---------------------------------------------------------------------------
 export const lightpresetsApi = {
-  list: () => fetch(`${BASE_URL}/lightpresets`).then(handleResponse),
-  get: (id) => fetch(`${BASE_URL}/lightpresets/${id}`).then(handleResponse),
+  list: () => {
+    const cacheKey = getCacheKey('/lightpresets');
+    return fetchWithFallback(`${BASE_URL}/lightpresets`, {}, cacheKey);
+  },
+  get: (id) => {
+    const cacheKey = getCacheKey(`/lightpresets/${id}`);
+    return fetchWithFallback(`${BASE_URL}/lightpresets/${id}`, {}, cacheKey);
+  },
   create: (data) => fetch(`${BASE_URL}/lightpresets`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
   }).then(handleResponse),
@@ -540,8 +693,14 @@ export const lightpresetsApi = {
 // Setlists
 // ---------------------------------------------------------------------------
 export const setlistsApi = {
-  list: () => fetch(`${BASE_URL}/setlists`).then(handleResponse),
-  get: (id) => fetch(`${BASE_URL}/setlists/${id}`).then(handleResponse),
+  list: () => {
+    const cacheKey = getCacheKey('/setlists');
+    return fetchWithFallback(`${BASE_URL}/setlists`, {}, cacheKey);
+  },
+  get: (id) => {
+    const cacheKey = getCacheKey(`/setlists/${id}`);
+    return fetchWithFallback(`${BASE_URL}/setlists/${id}`, {}, cacheKey);
+  },
   create: (data) => fetch(`${BASE_URL}/setlists`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
   }).then(handleResponse),

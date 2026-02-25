@@ -2,7 +2,7 @@
 //   Tickets | Events | Netzwerk | Portfolio | Inventory | Sets | Quotes | Contacts | Reports
 //   | Projekte | Templates | Wartung | Setlists
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dashboard }            from './pages/Dashboard';
 import { EventsDashboard }      from './pages/EventsDashboard';
 import { NetworkDashboard }     from './pages/NetworkDashboard';
@@ -16,6 +16,7 @@ import { Projects }             from './pages/Projects';
 import { Templates }            from './pages/Templates';
 import { MaintenanceDashboard } from './pages/MaintenanceDashboard';
 import { Setlist }              from './pages/Setlist';
+import { ConnectionStatus }     from './components/ConnectionStatus';
 
 const TABS = [
   { id: 'tickets',     label: '🎫 Tickets'   },
@@ -38,8 +39,16 @@ let headerTaps = 0;
 let headerTimer = null;
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('tickets');
+  const [activeTab, setActiveTab] = useState(() => {
+    // Restore last active tab from localStorage
+    return localStorage.getItem('activeTab') || 'tickets';
+  });
   const [easterEgg, setEasterEgg] = useState(false);
+
+  // Save active tab to localStorage
+  useEffect(() => {
+    localStorage.setItem('activeTab', activeTab);
+  }, [activeTab]);
 
   function handleLogoClick() {
     headerTaps++;
@@ -88,30 +97,34 @@ export default function App() {
         {activeTab === 'reports'     && <ReportsPage />}
       </main>
 
+      <ConnectionStatus />
+
       {/* Easter egg: Mini-Sampler modal (7x logo tap) */}
       {easterEgg && (
         <div
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, backdropFilter: 'blur(4px)' }}
           onClick={() => setEasterEgg(false)}
         >
-          <div style={{ background: '#1a1a2e', borderRadius: 16, padding: '2rem', textAlign: 'center', color: '#fff', maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+          <div style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', padding: '2rem', textAlign: 'center', maxWidth: 420, border: '2px solid var(--color-primary)', boxShadow: 'var(--shadow-lg)' }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: '2.5rem', marginBottom: '.5rem' }}>🎹</div>
-            <h3 style={{ color: '#00d4ff', marginBottom: '1rem' }}>Mini-Sampler</h3>
-            <p style={{ color: '#aaa', marginBottom: '1.5rem', fontSize: '.9rem' }}>Du hast das Easter Egg gefunden! 🎉</p>
+            <h3 style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-info))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: '1rem' }}>Mini-Sampler</h3>
+            <p style={{ color: 'var(--color-text-muted)', marginBottom: '1.5rem', fontSize: '.9rem' }}>Du hast das Easter Egg gefunden! 🎉</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
               {['🥁 Kick', '🔔 Hi-Hat', '🎸 Bass', '🎷 Lead', '🔊 Clap', '🎵 Synth', '💥 FX', '🎤 Vox'].map(s => (
                 <button
                   key={s}
-                  style={{ background: '#16213e', border: '1px solid #333', borderRadius: 8, padding: '.75rem .5rem', color: '#eee', cursor: 'pointer', fontSize: '.8rem', transition: 'all .1s' }}
-                  onMouseDown={e => { e.currentTarget.style.background = '#00d4ff'; e.currentTarget.style.color = '#111'; }}
-                  onMouseUp={e => { e.currentTarget.style.background = '#16213e'; e.currentTarget.style.color = '#eee'; }}
+                  className="btn btn-ghost btn-sm"
+                  style={{ transition: 'all .1s' }}
+                  onMouseDown={e => { e.currentTarget.style.background = 'var(--color-primary)'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.transform = 'scale(0.95)'; }}
+                  onMouseUp={e => { e.currentTarget.style.background = ''; e.currentTarget.style.color = ''; e.currentTarget.style.transform = ''; }}
                 >
                   {s}
                 </button>
               ))}
             </div>
             <button
-              style={{ marginTop: '1.5rem', background: 'transparent', border: '1px solid #333', color: '#aaa', padding: '.5rem 1rem', borderRadius: 8, cursor: 'pointer' }}
+              className="btn btn-ghost"
+              style={{ marginTop: '1.5rem' }}
               onClick={() => setEasterEgg(false)}
             >
               ✕ Schließen
