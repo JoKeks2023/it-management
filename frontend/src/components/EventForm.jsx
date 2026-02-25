@@ -13,7 +13,8 @@ export function EventForm({ event, onSave, onClose }) {
 
   const [form, setForm] = useState({
     title: '', event_type: 'DJ', client_name: '', client_contact: '',
-    location: '', event_date: '', start_time: '', end_time: '',
+    location: '', event_date: '', setup_date: '', teardown_date: '',
+    start_time: '', end_time: '',
     materials_needed: '', price_estimate: '', payment_status: 'offen',
     status: 'angefragt', notes: '', equipment: []
   });
@@ -32,6 +33,8 @@ export function EventForm({ event, onSave, onClose }) {
         client_contact:   event.client_contact   || '',
         location:         event.location         || '',
         event_date:       event.event_date        || '',
+        setup_date:       event.setup_date        || '',
+        teardown_date:    event.teardown_date     || '',
         start_time:       event.start_time       || '',
         end_time:         event.end_time         || '',
         materials_needed: event.materials_needed || '',
@@ -160,7 +163,7 @@ export function EventForm({ event, onSave, onClose }) {
 
             <div className="form-grid">
               <div className="form-group">
-                <label className="form-label">Datum</label>
+                <label className="form-label">Datum (Veranstaltung)</label>
                 <input className="form-input" type="date" value={form.event_date}
                   onChange={e => set('event_date', e.target.value)} />
               </div>
@@ -175,6 +178,19 @@ export function EventForm({ event, onSave, onClose }) {
                   <input className="form-input" type="time" value={form.end_time}
                     onChange={e => set('end_time', e.target.value)} />
                 </div>
+              </div>
+            </div>
+
+            <div className="form-grid">
+              <div className="form-group">
+                <label className="form-label">Aufbau / Anlieferung</label>
+                <input className="form-input" type="date" value={form.setup_date}
+                  onChange={e => set('setup_date', e.target.value)} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Abbau / Rückgabe</label>
+                <input className="form-input" type="date" value={form.teardown_date}
+                  onChange={e => set('teardown_date', e.target.value)} />
               </div>
             </div>
 
