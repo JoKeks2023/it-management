@@ -441,6 +441,148 @@ function initializeDatabase() {
   safeAddColumn('events', 'setup_date',    'TEXT');
   safeAddColumn('events', 'teardown_date', 'TEXT');
   safeAddColumn('event_inventory_items', 'packed', 'INTEGER NOT NULL DEFAULT 0');
+
+  // -------------------------------------------------------------------
+  // Migration 001: New feature tables (projects, templates, maintenance,
+  // light presets, setlists, automations, badges, bingo).
+  // -------------------------------------------------------------------
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS templates (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      name         TEXT    NOT NULL,
+      category     TEXT    NOT NULL DEFAULT 'event'
+                           CHECK(category IN ('event','installation','service','other')),
+      description  TEXT,
+      checklist    TEXT,
+      equipment    TEXT,
+      notes        TEXT,
+      created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+      updated_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS projects (
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      title            TEXT    NOT NULL,
+      description      TEXT,
+      project_type     TEXT    NOT NULL DEFAULT 'event'
+                               CHECK(project_type IN ('event','installation','service','other')),
+      template_id      INTEGER REFERENCES templates(id) ON DELETE SET NULL,
+      client_name      TEXT,
+      client_contact   TEXT,
+      location         TEXT,
+      start_date       TEXT,
+      end_date         TEXT,
+      status           TEXT    NOT NULL DEFAULT 'planning'
+                               CHECK(status IN ('planning','active','completed','cancelled')),
+      invoice_status   TEXT    NOT NULL DEFAULT 'none'
+                               CHECK(invoice_status IN ('none','draft','sent','paid')),
+      invoice_path     TEXT,
+      clientsite_token TEXT,
+      clientsite_path  TEXT,
+      price_estimate   REAL,
+      notes            TEXT,
+      created_at       TEXT    NOT NULL DEFAULT (datetime('now')),
+      updated_at       TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS project_media (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id   INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      filename     TEXT    NOT NULL,
+      stored_name  TEXT    NOT NULL,
+      mime_type    TEXT,
+      size         INTEGER,
+      thumbnail    TEXT,
+      uploaded_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS maintenance_jobs (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      asset_name    TEXT    NOT NULL,
+      asset_id      TEXT,
+      description   TEXT,
+      interval_days INTEGER NOT NULL DEFAULT 90,
+      last_service  TEXT,
+      next_service  TEXT,
+      status        TEXT    NOT NULL DEFAULT 'scheduled'
+                            CHECK(status IN ('scheduled','due','overdue','completed')),
+      assigned_to   TEXT,
+      notes         TEXT,
+      created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+      updated_at    TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS maintenance_logs (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      job_id       INTEGER NOT NULL REFERENCES maintenance_jobs(id) ON DELETE CASCADE,
+      performed_at TEXT    NOT NULL DEFAULT (datetime('now')),
+      performed_by TEXT,
+      notes        TEXT,
+      cost         REAL
+    );
+
+    CREATE TABLE IF NOT EXISTS light_presets (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      name        TEXT    NOT NULL,
+      description TEXT,
+      dmx_json    TEXT,
+      created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+      updated_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS setlists (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      name       TEXT    NOT NULL,
+      event_id   INTEGER REFERENCES events(id) ON DELETE SET NULL,
+      project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+      notes      TEXT,
+      created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS setlist_tracks (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      setlist_id INTEGER NOT NULL REFERENCES setlists(id) ON DELETE CASCADE,
+      position   INTEGER NOT NULL DEFAULT 1,
+      title      TEXT    NOT NULL,
+      artist     TEXT,
+      bpm        REAL,
+      key_sig    TEXT,
+      duration_s INTEGER,
+      notes      TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS automations (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      name         TEXT    NOT NULL,
+      trigger_type TEXT    NOT NULL DEFAULT 'event_update'
+                           CHECK(trigger_type IN ('event_update','daily_cron','manual')),
+      condition    TEXT    NOT NULL,
+      action       TEXT    NOT NULL,
+      enabled      INTEGER NOT NULL DEFAULT 1,
+      last_run     TEXT,
+      created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+      updated_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS badges (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      name       TEXT    NOT NULL UNIQUE,
+      description TEXT,
+      icon        TEXT   DEFAULT '🏆',
+      criteria    TEXT,
+      awarded_at  TEXT,
+      created_at  TEXT   NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS bingo_cards (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      event_id   INTEGER REFERENCES events(id) ON DELETE CASCADE,
+      project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+      items      TEXT    NOT NULL,
+      created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
 }
 
 initializeDatabase();
