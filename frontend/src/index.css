@@ -158,6 +158,136 @@ a:hover { text-decoration: underline; }
 .badge-Server        { background: #f3e8ff; color: #7c3aed; }
 .badge-Sonstiges     { background: #f1f5f9; color: #64748b; }
 
+/* ─── Portfolio section ─────────────────────────────────────────────────── */
+
+/* Responsive card grid */
+.portfolio-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.25rem;
+}
+
+/* Individual portfolio card */
+.portfolio-card {
+  cursor: pointer;
+  transition: box-shadow .2s, transform .15s;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.portfolio-card:hover,
+.portfolio-card:focus-visible {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+  outline: 2px solid var(--color-primary);
+}
+
+/* Thumbnail area */
+.portfolio-card__thumb {
+  width: 100%;
+  height: 180px;
+  overflow: hidden;
+  background: var(--color-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.portfolio-card__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.portfolio-card__thumb-placeholder {
+  font-size: 3rem;
+  color: var(--color-text-muted);
+  user-select: none;
+}
+
+/* Card body */
+.portfolio-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+  flex: 1;
+}
+.portfolio-card__title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: .1rem 0;
+  line-height: 1.3;
+}
+.portfolio-card__date { margin: 0; }
+.portfolio-card__desc { margin: 0; }
+
+/* Tags row */
+.portfolio-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .3rem;
+  margin-top: .2rem;
+}
+.portfolio-tag {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 99px;
+  font-size: .72rem;
+  padding: .15rem .55rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* Category badges for portfolio */
+.portfolio-badge { font-size: .75rem; }
+.portfolio-badge--it              { background: #dbeafe; color: #1d4ed8; }
+.portfolio-badge--djing           { background: #f3e8ff; color: #7c3aed; }
+.portfolio-badge--eventtechnik    { background: #ecfdf5; color: #065f46; }
+.portfolio-badge--videography     { background: #fce7f3; color: #be185d; }
+.portfolio-badge--photography     { background: #fef3c7; color: #b45309; }
+.portfolio-badge--musikproduktion { background: #fee2e2; color: #b91c1c; }
+
+/* Detail modal media gallery */
+.portfolio-detail { max-width: 760px; }
+.portfolio-media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: .75rem;
+}
+.portfolio-media-tile {
+  display: block;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--color-bg);
+  text-align: center;
+}
+.portfolio-media-tile img {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  display: block;
+  transition: opacity .15s;
+}
+.portfolio-media-tile img:hover { opacity: .85; }
+.portfolio-media-tile--video,
+.portfolio-media-tile--audio {
+  padding: .5rem;
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+}
+.portfolio-media-tile--video video,
+.portfolio-media-tile--audio audio { width: 100%; }
+.portfolio-media-tile--file {
+  padding: .75rem .5rem;
+  font-size: .875rem;
+  color: var(--color-primary);
+}
+@media (max-width: 640px) {
+  .portfolio-grid { grid-template-columns: 1fr; }
+  .portfolio-media-grid { grid-template-columns: 1fr 1fr; }
+}
+
 /* Contact type badges */
 .badge-Kunde         { background: #dbeafe; color: #1d4ed8; }
 .badge-Veranstalter  { background: #f3e8ff; color: #7c3aed; }
