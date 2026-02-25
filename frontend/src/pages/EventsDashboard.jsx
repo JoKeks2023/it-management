@@ -6,6 +6,7 @@ import { eventsApi } from '../services/api';
 import { StatusBadge } from '../components/StatusBadge';
 import { EventForm }   from '../components/EventForm';
 import { EventDetail } from '../components/EventDetail';
+import { CalendarView } from '../components/CalendarView';
 
 const EVENT_TYPES      = ['DJ', 'Technik', 'Netzwerk-Setup', 'Hybrid'];
 const STATUSES         = ['angefragt', 'bestätigt', 'vorbereitet', 'durchgeführt', 'abgeschlossen'];
@@ -22,6 +23,7 @@ export function EventsDashboard() {
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState('');
   const [filters,    setFilters]    = useState({ status: '', event_type: '', search: '' });
+  const [viewMode,   setViewMode]   = useState('list'); // 'list' | 'calendar'
   const [showCreate, setShowCreate] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
 
@@ -148,7 +150,13 @@ export function EventsDashboard() {
           onClick={() => setFilters({ status: '', event_type: '', search: '', payment_status: '' })}>
           ✕ Reset
         </button>
-        <button className="btn btn-primary ml-auto" onClick={() => setShowCreate(true)}>
+        <div style={{ display: 'flex', gap: '.3rem', marginLeft: 'auto' }}>
+          <button className={`btn btn-sm ${viewMode === 'list' ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => setViewMode('list')}>☰ Liste</button>
+          <button className={`btn btn-sm ${viewMode === 'calendar' ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => setViewMode('calendar')}>📅 Kalender</button>
+        </div>
+        <button className="btn btn-primary btn-sm" onClick={() => setShowCreate(true)}>
           + Neues Event
         </button>
       </div>
@@ -156,7 +164,12 @@ export function EventsDashboard() {
       {/* ── Event table ──────────────────────────────── */}
       {error && <div className="error-msg">{error}</div>}
 
-      <div className="card">
+      {/* ── Calendar view ────────────────────────────── */}
+      {viewMode === 'calendar' && !loading && (
+        <CalendarView events={events} onEventClick={id => setSelectedId(id)} />
+      )}
+
+      {viewMode === 'list' && <div className="card">
         {loading ? (
           <div className="centered"><div className="spinner" /></div>
         ) : events.length === 0 ? (
@@ -198,7 +211,7 @@ export function EventsDashboard() {
             </tbody>
           </table>
         )}
-      </div>
+      </div>}
 
       {showCreate && (
         <EventForm event={null} onSave={handleCreated} onClose={() => setShowCreate(false)} />

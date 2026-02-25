@@ -49,6 +49,18 @@ function loadFullEvent(id) {
     'SELECT * FROM event_equipment WHERE event_id = ?'
   ).all(id);
 
+  event.crew = db.prepare(
+    'SELECT * FROM event_crew WHERE event_id = ?'
+  ).all(id);
+
+  event.inventory_items = db.prepare(`
+    SELECT ei.*, ii.name AS item_name, ii.category, ii.rental_rate AS catalog_rate, ii.quantity AS stock_qty
+    FROM event_inventory_items ei
+    JOIN inventory_items ii ON ii.id = ei.inventory_item_id
+    WHERE ei.event_id = ?
+    ORDER BY ei.id
+  `).all(id);
+
   event.attachments = db.prepare(
     `SELECT id, event_id, filename, mime_type, size, uploaded_at
      FROM attachments WHERE event_id = ?`
@@ -129,6 +141,8 @@ router.post('/', (req, res) => {
     client_contact,
     location,
     event_date,
+    setup_date,
+    teardown_date,
     start_time,
     end_time,
     materials_needed,
@@ -158,12 +172,13 @@ router.post('/', (req, res) => {
     const result = db.prepare(`
       INSERT INTO events
         (title, event_type, client_name, client_contact, location,
-         event_date, start_time, end_time, materials_needed,
+         event_date, setup_date, teardown_date, start_time, end_time, materials_needed,
          price_estimate, payment_status, status, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       title.trim(), event_type, client_name || null, client_contact || null,
-      location || null, event_date || null, start_time || null, end_time || null,
+      location || null, event_date || null, setup_date || null, teardown_date || null,
+      start_time || null, end_time || null,
       materials_needed || null, price_estimate || null, payment_status, status, notes || null
     );
 
@@ -202,7 +217,7 @@ router.put('/:id', (req, res) => {
 
   const {
     title, event_type, client_name, client_contact, location,
-    event_date, start_time, end_time, materials_needed,
+    event_date, setup_date, teardown_date, start_time, end_time, materials_needed,
     price_estimate, payment_status, status, notes, equipment
   } = req.body;
 
@@ -232,7 +247,8 @@ router.put('/:id', (req, res) => {
     db.prepare(`
       UPDATE events SET
         title = ?, event_type = ?, client_name = ?, client_contact = ?,
-        location = ?, event_date = ?, start_time = ?, end_time = ?,
+        location = ?, event_date = ?, setup_date = ?, teardown_date = ?,
+        start_time = ?, end_time = ?,
         materials_needed = ?, price_estimate = ?, payment_status = ?,
         status = ?, notes = ?, updated_at = datetime('now')
       WHERE id = ?
@@ -243,6 +259,8 @@ router.put('/:id', (req, res) => {
       n(client_contact,   existing.client_contact),
       n(location,         existing.location),
       n(event_date,       existing.event_date),
+      n(setup_date,       existing.setup_date),
+      n(teardown_date,    existing.teardown_date),
       n(start_time,       existing.start_time),
       n(end_time,         existing.end_time),
       n(materials_needed, existing.materials_needed),
@@ -422,6 +440,362 @@ router.delete('/:id/attachments/:attId', (req, res) => {
   db.prepare('DELETE FROM attachments WHERE id = ?').run(attId);
   logHistory(eventId, 'attachment_removed', `Datei "${att.filename}" entfernt`);
   res.json({ message: 'Attachment deleted successfully' });
+});
+
+// ---------------------------------------------------------------------------
+// POST /events/:id/crew  – add a crew member
+// ---------------------------------------------------------------------------
+router.post('/:id/crew', (req, res) => {
+  const eventId = req.params.id;
+  const event = db.prepare('SELECT id FROM events WHERE id = ?').get(eventId);
+  if (!event) return res.status(404).json({ error: 'Event not found' });
+
+  const { name, role, contact_id, confirmed = false } = req.body;
+  if (!name || name.trim() === '')
+    return res.status(400).json({ error: 'name is required' });
+
+  const result = db.prepare(
+    'INSERT INTO event_crew (event_id, name, role, contact_id, confirmed) VALUES (?, ?, ?, ?, ?)'
+  ).run(eventId, name.trim(), role || null, contact_id || null, confirmed ? 1 : 0);
+
+  logHistory(eventId, 'crew_added', `"${name.trim()}" als ${role || 'Crew'} hinzugefügt`);
+  res.status(201).json(db.prepare('SELECT * FROM event_crew WHERE id = ?').get(result.lastInsertRowid));
+});
+
+// ---------------------------------------------------------------------------
+// PUT /events/:id/crew/:crewId  – update a crew member
+// ---------------------------------------------------------------------------
+router.put('/:id/crew/:crewId', (req, res) => {
+  const { id: eventId, crewId } = req.params;
+  const member = db.prepare('SELECT * FROM event_crew WHERE id = ? AND event_id = ?').get(crewId, eventId);
+  if (!member) return res.status(404).json({ error: 'Crew member not found' });
+
+  const { name, role, contact_id, confirmed } = req.body;
+  db.prepare(
+    `UPDATE event_crew SET name = ?, role = ?, contact_id = ?, confirmed = ? WHERE id = ?`
+  ).run(
+    name      !== undefined ? name.trim()        : member.name,
+    role      !== undefined ? role               : member.role,
+    contact_id !== undefined ? (contact_id || null) : member.contact_id,
+    confirmed !== undefined ? (confirmed ? 1 : 0) : member.confirmed,
+    crewId
+  );
+
+  if (confirmed !== undefined) {
+    logHistory(eventId, 'crew_updated',
+      `"${member.name}" ${confirmed ? 'bestätigt' : 'Bestätigung zurückgenommen'}`);
+  }
+
+  res.json(db.prepare('SELECT * FROM event_crew WHERE id = ?').get(crewId));
+});
+
+// ---------------------------------------------------------------------------
+// DELETE /events/:id/crew/:crewId  – remove a crew member
+// ---------------------------------------------------------------------------
+router.delete('/:id/crew/:crewId', (req, res) => {
+  const { id: eventId, crewId } = req.params;
+  const member = db.prepare('SELECT * FROM event_crew WHERE id = ? AND event_id = ?').get(crewId, eventId);
+  if (!member) return res.status(404).json({ error: 'Crew member not found' });
+
+  db.prepare('DELETE FROM event_crew WHERE id = ?').run(crewId);
+  logHistory(eventId, 'crew_removed', `"${member.name}" aus der Crew entfernt`);
+  res.json({ message: 'Crew member removed' });
+});
+
+// ---------------------------------------------------------------------------
+// Inventory items on an event
+// GET    /events/:id/inventory-items
+// POST   /events/:id/inventory-items
+// PUT    /events/:id/inventory-items/:lineId
+// DELETE /events/:id/inventory-items/:lineId
+// ---------------------------------------------------------------------------
+router.get('/:id/inventory-items', (req, res) => {
+  const event = db.prepare('SELECT id FROM events WHERE id = ?').get(req.params.id);
+  if (!event) return res.status(404).json({ error: 'Event not found' });
+
+  const lines = db.prepare(`
+    SELECT ei.*, ii.name AS item_name, ii.category, ii.rental_rate AS catalog_rate, ii.quantity AS stock_qty
+    FROM event_inventory_items ei
+    JOIN inventory_items ii ON ii.id = ei.inventory_item_id
+    WHERE ei.event_id = ?
+    ORDER BY ei.id
+  `).all(req.params.id);
+
+  res.json(lines);
+});
+
+router.post('/:id/inventory-items', (req, res) => {
+  const eventId = req.params.id;
+  const event = db.prepare('SELECT * FROM events WHERE id = ?').get(eventId);
+  if (!event) return res.status(404).json({ error: 'Event not found' });
+
+  const { inventory_item_id, quantity = 1, rental_days = 1, unit_price, notes } = req.body;
+  if (!inventory_item_id) return res.status(400).json({ error: 'inventory_item_id is required' });
+
+  const item = db.prepare('SELECT * FROM inventory_items WHERE id = ?').get(inventory_item_id);
+  if (!item) return res.status(404).json({ error: 'Inventory item not found' });
+
+  // Availability check
+  const dateFrom = event.setup_date    || event.event_date;
+  const dateTo   = event.teardown_date || event.event_date;
+
+  if (dateFrom && dateTo) {
+    const { booked } = db.prepare(`
+      SELECT COALESCE(SUM(ei.quantity), 0) AS booked
+      FROM event_inventory_items ei
+      JOIN events e ON e.id = ei.event_id
+      WHERE ei.inventory_item_id = ? AND e.id != ?
+        AND e.status NOT IN ('abgeschlossen')
+        AND COALESCE(e.teardown_date, e.event_date) >= ?
+        AND COALESCE(e.setup_date,    e.event_date) <= ?
+    `).get(inventory_item_id, eventId, dateFrom, dateTo);
+
+    if (booked + quantity > item.quantity) {
+      return res.status(409).json({
+        error: `Nicht genug verfügbar: ${item.quantity} vorhanden, ${booked} bereits reserviert, ${quantity} angefragt`
+      });
+    }
+  }
+
+  const resolvedPrice = unit_price !== undefined ? unit_price : item.rental_rate;
+  const result = db.prepare(`
+    INSERT INTO event_inventory_items (event_id, inventory_item_id, quantity, rental_days, unit_price, notes)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(eventId, inventory_item_id, quantity, rental_days, resolvedPrice, notes || null);
+
+  logHistory(eventId, 'inventory_added',
+    `${quantity}× "${item.name}" für ${rental_days} Tag(e) hinzugefügt`);
+
+  const line = db.prepare(`
+    SELECT ei.*, ii.name AS item_name, ii.category, ii.rental_rate AS catalog_rate, ii.quantity AS stock_qty
+    FROM event_inventory_items ei
+    JOIN inventory_items ii ON ii.id = ei.inventory_item_id
+    WHERE ei.id = ?
+  `).get(result.lastInsertRowid);
+
+  res.status(201).json(line);
+});
+
+router.put('/:id/inventory-items/:lineId', (req, res) => {
+  const { id: eventId, lineId } = req.params;
+  const line = db.prepare('SELECT * FROM event_inventory_items WHERE id = ? AND event_id = ?').get(lineId, eventId);
+  if (!line) return res.status(404).json({ error: 'Line not found' });
+
+  const { quantity, rental_days, unit_price, notes, packed } = req.body;
+  const n = (v, old) => v !== undefined ? v : old;
+
+  db.prepare(`
+    UPDATE event_inventory_items SET quantity = ?, rental_days = ?, unit_price = ?, notes = ?, packed = ? WHERE id = ?
+  `).run(n(quantity, line.quantity), n(rental_days, line.rental_days),
+         n(unit_price, line.unit_price), n(notes, line.notes),
+         packed !== undefined ? (packed ? 1 : 0) : line.packed,
+         lineId);
+
+  const updated = db.prepare(`
+    SELECT ei.*, ii.name AS item_name, ii.category, ii.rental_rate AS catalog_rate, ii.quantity AS stock_qty
+    FROM event_inventory_items ei
+    JOIN inventory_items ii ON ii.id = ei.inventory_item_id
+    WHERE ei.id = ?
+  `).get(lineId);
+
+  res.json(updated);
+});
+
+router.delete('/:id/inventory-items/:lineId', (req, res) => {
+  const { id: eventId, lineId } = req.params;
+  const line = db.prepare('SELECT * FROM event_inventory_items WHERE id = ? AND event_id = ?').get(lineId, eventId);
+  if (!line) return res.status(404).json({ error: 'Line not found' });
+
+  db.prepare('DELETE FROM event_inventory_items WHERE id = ?').run(lineId);
+  logHistory(eventId, 'inventory_removed', `Inventar-Buchung entfernt`);
+  res.json({ message: 'Inventory line removed' });
+});
+
+// ---------------------------------------------------------------------------
+// Sub-rental (Fremdmiete) endpoints
+// GET    /events/:id/subrentals
+// POST   /events/:id/subrentals
+// PUT    /events/:id/subrentals/:srId
+// DELETE /events/:id/subrentals/:srId
+// ---------------------------------------------------------------------------
+const SUBRENTAL_STATUSES = ['angefragt','bestätigt','geliefert','zurückgegeben'];
+
+router.get('/:id/subrentals', (req, res) => {
+  const event = db.prepare('SELECT id FROM events WHERE id = ?').get(req.params.id);
+  if (!event) return res.status(404).json({ error: 'Event not found' });
+
+  const rows = db.prepare(`
+    SELECT sr.*, c.name AS supplier_name
+    FROM subrental_items sr
+    LEFT JOIN contacts c ON c.id = sr.supplier_id
+    WHERE sr.event_id = ?
+    ORDER BY sr.id
+  `).all(req.params.id);
+
+  res.json(rows);
+});
+
+router.post('/:id/subrentals', (req, res) => {
+  const eventId = req.params.id;
+  const event = db.prepare('SELECT id FROM events WHERE id = ?').get(eventId);
+  if (!event) return res.status(404).json({ error: 'Event not found' });
+
+  const { item_name, quantity = 1, rental_cost = 0, rental_days = 1,
+          supplier_id, status = 'angefragt', notes } = req.body;
+
+  if (!item_name || !item_name.trim()) return res.status(400).json({ error: 'item_name is required' });
+  if (!SUBRENTAL_STATUSES.includes(status))
+    return res.status(400).json({ error: `Invalid status. Must be one of: ${SUBRENTAL_STATUSES.join(', ')}` });
+
+  if (supplier_id) {
+    const c = db.prepare('SELECT id FROM contacts WHERE id = ?').get(supplier_id);
+    if (!c) return res.status(400).json({ error: 'Supplier contact not found' });
+  }
+
+  const result = db.prepare(`
+    INSERT INTO subrental_items (event_id, supplier_id, item_name, quantity, rental_cost, rental_days, status, notes)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(eventId, supplier_id || null, item_name.trim(), quantity, rental_cost, rental_days, status, notes || null);
+
+  logHistory(eventId, 'subrental_added', `Fremdmiete "${item_name.trim()}" hinzugefügt`);
+
+  const row = db.prepare(`
+    SELECT sr.*, c.name AS supplier_name
+    FROM subrental_items sr
+    LEFT JOIN contacts c ON c.id = sr.supplier_id
+    WHERE sr.id = ?
+  `).get(result.lastInsertRowid);
+
+  res.status(201).json(row);
+});
+
+router.put('/:id/subrentals/:srId', (req, res) => {
+  const { id: eventId, srId } = req.params;
+  const sr = db.prepare('SELECT * FROM subrental_items WHERE id = ? AND event_id = ?').get(srId, eventId);
+  if (!sr) return res.status(404).json({ error: 'Subrental item not found' });
+
+  const { status } = req.body;
+  if (status && !SUBRENTAL_STATUSES.includes(status))
+    return res.status(400).json({ error: `Invalid status` });
+
+  const n = (v, old) => v !== undefined ? v : old;
+  const { item_name, quantity, rental_cost, rental_days, supplier_id, notes } = req.body;
+
+  db.prepare(`
+    UPDATE subrental_items SET item_name = ?, quantity = ?, rental_cost = ?, rental_days = ?,
+      supplier_id = ?, status = ?, notes = ? WHERE id = ?
+  `).run(
+    item_name !== undefined ? item_name.trim() : sr.item_name,
+    n(quantity,    sr.quantity), n(rental_cost, sr.rental_cost), n(rental_days, sr.rental_days),
+    n(supplier_id, sr.supplier_id), n(status, sr.status), n(notes, sr.notes),
+    srId
+  );
+
+  if (status && status !== sr.status) {
+    logHistory(eventId, 'subrental_updated', `Fremdmiete "${sr.item_name}": Status → ${status}`);
+  }
+
+  const row = db.prepare(`
+    SELECT sr.*, c.name AS supplier_name
+    FROM subrental_items sr
+    LEFT JOIN contacts c ON c.id = sr.supplier_id
+    WHERE sr.id = ?
+  `).get(srId);
+
+  res.json(row);
+});
+
+router.delete('/:id/subrentals/:srId', (req, res) => {
+  const { id: eventId, srId } = req.params;
+  const sr = db.prepare('SELECT * FROM subrental_items WHERE id = ? AND event_id = ?').get(srId, eventId);
+  if (!sr) return res.status(404).json({ error: 'Subrental item not found' });
+
+  db.prepare('DELETE FROM subrental_items WHERE id = ?').run(srId);
+  logHistory(eventId, 'subrental_removed', `Fremdmiete "${sr.item_name}" entfernt`);
+  res.json({ message: 'Subrental item removed' });
+});
+
+// ---------------------------------------------------------------------------
+// Packing list  GET /events/:id/packing-list
+// Returns all inventory items for the event with packed status.
+// ---------------------------------------------------------------------------
+router.get('/:id/packing-list', (req, res) => {
+  const event = db.prepare('SELECT * FROM events WHERE id = ?').get(req.params.id);
+  if (!event) return res.status(404).json({ error: 'Event not found' });
+
+  const items = db.prepare(`
+    SELECT ei.id, ei.inventory_item_id, ei.quantity, ei.rental_days, ei.unit_price, ei.packed,
+           ii.name AS item_name, ii.category, ii.barcode
+    FROM event_inventory_items ei
+    JOIN inventory_items ii ON ii.id = ei.inventory_item_id
+    WHERE ei.event_id = ?
+    ORDER BY ii.category, ii.name
+  `).all(req.params.id);
+
+  const subrentals = db.prepare(`
+    SELECT sr.id, sr.item_name, sr.quantity, sr.status AS subrental_status,
+           c.name AS supplier_name
+    FROM subrental_items sr
+    LEFT JOIN contacts c ON c.id = sr.supplier_id
+    WHERE sr.event_id = ?
+    ORDER BY sr.item_name
+  `).all(req.params.id);
+
+  const packed   = items.filter(i => i.packed).length;
+  const unpacked = items.length - packed;
+
+  res.json({
+    event_id:     event.id,
+    event_title:  event.title,
+    event_date:   event.event_date,
+    setup_date:   event.setup_date,
+    items,
+    subrentals,
+    summary: { total: items.length, packed, unpacked }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Crew conflict check  GET /events/:id/crew-conflicts
+// Returns crew members that are also booked on overlapping events.
+// ---------------------------------------------------------------------------
+router.get('/:id/crew-conflicts', (req, res) => {
+  const event = db.prepare('SELECT * FROM events WHERE id = ?').get(req.params.id);
+  if (!event) return res.status(404).json({ error: 'Event not found' });
+
+  const crew = db.prepare('SELECT * FROM event_crew WHERE event_id = ?').all(event.id);
+  const dateFrom = event.setup_date    || event.event_date;
+  const dateTo   = event.teardown_date || event.event_date;
+
+  const conflicts = [];
+
+  for (const m of crew) {
+    if (!m.contact_id) continue; // can only detect conflicts for linked contacts
+
+    // Find other events using the same contact in their crew, that overlap dates
+    let q = `
+      SELECT DISTINCT e.id, e.title, e.event_date, e.setup_date, e.teardown_date,
+             ec.role AS crew_role
+      FROM event_crew ec
+      JOIN events e ON e.id = ec.event_id
+      WHERE ec.contact_id = ?
+        AND e.id != ?
+        AND e.status NOT IN ('abgeschlossen')
+    `;
+    const p = [m.contact_id, event.id];
+
+    if (dateFrom && dateTo) {
+      q += ` AND COALESCE(e.teardown_date, e.event_date) >= ? AND COALESCE(e.setup_date, e.event_date) <= ?`;
+      p.push(dateFrom, dateTo);
+    }
+
+    const conflicting = db.prepare(q).all(...p);
+    if (conflicting.length > 0) {
+      conflicts.push({ crew_member: m, conflicting_events: conflicting });
+    }
+  }
+
+  res.json(conflicts);
 });
 
 module.exports = router;

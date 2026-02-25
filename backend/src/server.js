@@ -9,10 +9,15 @@ const cors = require('cors');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
 
-const ticketRoutes = require('./routes/tickets');
-const assetRoutes  = require('./routes/assets');
-const eventRoutes  = require('./routes/events');
-const networkRoutes = require('./routes/network');
+const ticketRoutes    = require('./routes/tickets');
+const assetRoutes     = require('./routes/assets');
+const eventRoutes     = require('./routes/events');
+const networkRoutes   = require('./routes/network');
+const contactRoutes   = require('./routes/contacts');
+const inventoryRoutes = require('./routes/inventory');
+const quotesRoutes    = require('./routes/quotes');
+const setsRoutes      = require('./routes/sets');
+const reportsRoutes   = require('./routes/reports');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -61,10 +66,15 @@ const uploadLimiter = rateLimit({
   message: { error: 'Too many upload requests, please try again later.' }
 });
 
-app.use('/tickets', apiLimiter);
-app.use('/assets',  apiLimiter);
-app.use('/events',  apiLimiter);
-app.use('/network', apiLimiter);
+app.use('/tickets',   apiLimiter);
+app.use('/assets',    apiLimiter);
+app.use('/events',    apiLimiter);
+app.use('/network',   apiLimiter);
+app.use('/contacts',  apiLimiter);
+app.use('/inventory', apiLimiter);
+app.use('/quotes',    apiLimiter);
+app.use('/sets',      apiLimiter);
+app.use('/reports',   apiLimiter);
 app.use('/tickets/:id/attachments', uploadLimiter);
 app.use('/events/:id/attachments',  uploadLimiter);
 
@@ -78,10 +88,15 @@ app.use('/uploads', express.static(uploadDir));
 // ---------------------------------------------------------------------------
 // Routes
 // ---------------------------------------------------------------------------
-app.use('/tickets', ticketRoutes);
-app.use('/assets',  assetRoutes);
-app.use('/events',  eventRoutes);
-app.use('/network', networkRoutes);
+app.use('/tickets',   ticketRoutes);
+app.use('/assets',    assetRoutes);
+app.use('/events',    eventRoutes);
+app.use('/network',   networkRoutes);
+app.use('/contacts',  contactRoutes);
+app.use('/inventory', inventoryRoutes);
+app.use('/quotes',    quotesRoutes);
+app.use('/sets',      setsRoutes);
+app.use('/reports',   reportsRoutes);
 
 // Health-check endpoint
 app.get('/health', (_req, res) => {
