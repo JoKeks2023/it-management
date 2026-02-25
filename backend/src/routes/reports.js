@@ -33,12 +33,24 @@ router.get('/overview', (_req, res) => {
   const revenue_total     = db.prepare(`SELECT COALESCE(SUM(total),0) AS n FROM quotes WHERE quote_type='Rechnung' AND status NOT IN ('Storniert')`).get().n;
   const revenue_this_year = db.prepare(`SELECT COALESCE(SUM(total),0) AS n FROM quotes WHERE quote_type='Rechnung' AND status NOT IN ('Storniert') AND strftime('%Y', issue_date) = ?`).get(String(thisYear)).n;
 
+  const tickets_total     = db.prepare('SELECT COUNT(*) AS n FROM tickets').get().n;
+  const tickets_open      = db.prepare(`SELECT COUNT(*) AS n FROM tickets WHERE status != 'fertig'`).get().n;
+  const projects_active   = db.prepare(`SELECT COUNT(*) AS n FROM projects WHERE status NOT IN ('abgeschlossen','archiviert')`).get().n;
+  const maintenance_due   = db.prepare(`SELECT COUNT(*) AS n FROM maintenance_jobs WHERE status IN ('due','overdue')`).get().n;
+  const setlists_total    = db.prepare('SELECT COUNT(*) AS n FROM setlists').get().n;
+  const network_devices   = db.prepare('SELECT COUNT(*) AS n FROM network_devices').get().n;
+
   res.json({
     events_total, events_upcoming, events_this_year,
     contacts_total,
     inventory_total, inventory_in_repair,
     quotes_open,
-    revenue_total, revenue_this_year
+    revenue_total, revenue_this_year,
+    tickets_total, tickets_open,
+    projects_active,
+    maintenance_due,
+    setlists_total,
+    network_devices
   });
 });
 
