@@ -145,8 +145,54 @@ export const eventsApi = {
 };
 
 // ---------------------------------------------------------------------------
-// Network
+// Portfolio
 // ---------------------------------------------------------------------------
+export const portfolioApi = {
+  /** List portfolio items with optional filters: { category, tag, search } */
+  list: (filters = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([k, v]) => { if (v) params.append(k, v); });
+    const query = params.toString() ? `?${params}` : '';
+    return fetch(`${BASE_URL}/portfolio${query}`).then(handleResponse);
+  },
+
+  /** Get a single portfolio item with its media list */
+  get: (id) => fetch(`${BASE_URL}/portfolio/${id}`).then(handleResponse),
+
+  /** Create a new portfolio item */
+  create: (data) =>
+    fetch(`${BASE_URL}/portfolio`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).then(handleResponse),
+
+  /** Update a portfolio item (partial update supported) */
+  update: (id, data) =>
+    fetch(`${BASE_URL}/portfolio/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).then(handleResponse),
+
+  /** Delete a portfolio item */
+  delete: (id) =>
+    fetch(`${BASE_URL}/portfolio/${id}`, { method: 'DELETE' }).then(handleResponse),
+
+  /** Upload media files to a portfolio item (FormData with 'files' field) */
+  uploadMedia: (id, formData) =>
+    fetch(`${BASE_URL}/portfolio/${id}/media`, {
+      method: 'POST',
+      body: formData
+    }).then(handleResponse),
+
+  /** Delete a media file from a portfolio item */
+  deleteMedia: (itemId, mediaId) =>
+    fetch(`${BASE_URL}/portfolio/${itemId}/media/${mediaId}`, {
+      method: 'DELETE'
+    }).then(handleResponse)
+};
+
 export const networkApi = {
   // --- Topology ---
   topology: () => fetch(`${BASE_URL}/network/topology`).then(handleResponse),

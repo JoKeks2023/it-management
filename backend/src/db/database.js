@@ -145,6 +145,42 @@ function initializeDatabase() {
     );
 
     -- ================================================================
+    -- PORTFOLIO MODULE
+    -- Projects, jobs, and creative works with media attachments.
+    -- ================================================================
+
+    -- ----------------------------------------------------------------
+    -- portfolio_items table
+    -- Core entity for every portfolio project / job.
+    -- ----------------------------------------------------------------
+    CREATE TABLE IF NOT EXISTS portfolio_items (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      title       TEXT    NOT NULL,
+      category    TEXT    NOT NULL DEFAULT 'IT',  -- e.g. DJing, Eventtechnik, IT
+      tags        TEXT,                            -- comma-separated tags
+      description TEXT,
+      date_from   TEXT,                            -- ISO date YYYY-MM-DD
+      date_to     TEXT,                            -- ISO date YYYY-MM-DD (optional)
+      link        TEXT,                            -- optional external URL
+      created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+      updated_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
+    -- ----------------------------------------------------------------
+    -- portfolio_media table
+    -- Images, videos, or audio files attached to a portfolio item.
+    -- ----------------------------------------------------------------
+    CREATE TABLE IF NOT EXISTS portfolio_media (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      portfolio_id    INTEGER NOT NULL REFERENCES portfolio_items(id) ON DELETE CASCADE,
+      filename        TEXT    NOT NULL,   -- original file name
+      stored_name     TEXT    NOT NULL,   -- UUID-based name on disk
+      mime_type       TEXT,
+      size            INTEGER,            -- bytes
+      uploaded_at     TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
+    -- ================================================================
     -- NETWORK MODULE
     -- Devices, ports, racks for network topology management.
     -- ================================================================
