@@ -719,3 +719,46 @@ export const setlistsApi = {
   }).then(handleResponse),
   exportUrl: (id, format = 'json') => `${BASE_URL}/setlists/${id}/export?format=${format}`
 };
+// ---------------------------------------------------------------------------
+// Unifi Integration
+// ---------------------------------------------------------------------------
+export const unifiApi = {
+  /** Get current Unifi configuration */
+  getConfig: () => {
+    const cacheKey = getCacheKey('/unifi/config');
+    return fetchWithFallback(`${BASE_URL}/unifi/config`, {}, cacheKey);
+  },
+
+  /** Update Unifi configuration */
+  setConfig: (data) =>
+    fetch(`${BASE_URL}/unifi/config`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).then(handleResponse),
+
+  /** Check connection status with Unifi controller */
+  status: () => {
+    const cacheKey = getCacheKey('/unifi/status');
+    return fetchWithFallback(`${BASE_URL}/unifi/status`, {}, cacheKey);
+  },
+
+  /** Sync devices from Unifi controller to network database */
+  syncDevices: () =>
+    fetch(`${BASE_URL}/unifi/sync-devices`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    }).then(handleResponse),
+
+  /** List all synced Unifi devices */
+  listDevices: () => {
+    const cacheKey = getCacheKey('/unifi/devices');
+    return fetchWithFallback(`${BASE_URL}/unifi/devices`, {}, cacheKey);
+  },
+
+  /** Get details for a specific Unifi device */
+  getDevice: (id) => {
+    const cacheKey = getCacheKey(`/unifi/device/${id}`);
+    return fetchWithFallback(`${BASE_URL}/unifi/device/${id}`, {}, cacheKey);
+  }
+};

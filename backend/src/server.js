@@ -23,6 +23,7 @@ const templatesRoutes   = require('./routes/templates');
 const maintenanceRoutes = require('./routes/maintenance');
 const lightpresetsRoutes = require('./routes/lightpresets');
 const setlistsRoutes    = require('./routes/setlists');
+const unifiRoutes       = require('./routes/unifi');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -88,6 +89,7 @@ app.use('/templates',    apiLimiter);
 app.use('/maintenance',  apiLimiter);
 app.use('/lightpresets', apiLimiter);
 app.use('/setlists',     apiLimiter);
+app.use('/unifi',        apiLimiter);
 
 app.use('/tickets/:id/attachments', uploadLimiter);
 app.use('/events/:id/attachments',  uploadLimiter);
@@ -118,6 +120,7 @@ app.use('/templates',    templatesRoutes);
 app.use('/maintenance',  maintenanceRoutes);
 app.use('/lightpresets', lightpresetsRoutes);
 app.use('/setlists',     setlistsRoutes);
+app.use('/unifi',        unifiRoutes);
 
 // ---------------------------------------------------------------------------
 // Client mini-site endpoint  GET /clientsite/:token

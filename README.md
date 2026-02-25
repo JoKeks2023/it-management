@@ -18,13 +18,16 @@
 
 | Modul | Beschreibung |
 |-------|-------------|
+| � **Unified Dashboard** | Zentrale Übersicht aller Module mit Schnellzugriff und Statistiken |
 | 🎫 **Ticket-System** | IT-Aufgaben planen, verfolgen und abschließen |
 | 📦 **Materialverwaltung** | Bestelllisten mit Bestell- und Einbau-Status |
 | 📎 **Datei-Anhänge** | PDFs, Bilder, Dokumente direkt am Ticket speichern |
 | 🎵 **Events-Modul** | DJ-Bookings & Technik-Events mit Equipment-Verwaltung |
 | 🌐 **Netzwerk-Topologie** | Interaktive Netzwerkplan-Visualisierung (React Flow) |
+| 📡 **Unifi Integration** | Automatische Synchronisierung von Netzwerkgeräten |
 | 🔗 **Shelf API** | Optionale Integration für professionelles Asset-Management |
 | 📜 **History** | Lückenloser Änderungsverlauf für jeden Datensatz |
+| 🔗 **Modulverknüpfung** | Kontextuelle Links zwischen verwandten Modulen |
 
 ---
 

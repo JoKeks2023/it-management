@@ -3,6 +3,7 @@
 //   | Projekte | Templates | Wartung | Setlists
 
 import { useState, useEffect } from 'react';
+import { UnifiedDashboard }     from './pages/UnifiedDashboard';
 import { Dashboard }            from './pages/Dashboard';
 import { EventsDashboard }      from './pages/EventsDashboard';
 import { NetworkDashboard }     from './pages/NetworkDashboard';
@@ -16,72 +17,37 @@ import { Projects }             from './pages/Projects';
 import { Templates }            from './pages/Templates';
 import { MaintenanceDashboard } from './pages/MaintenanceDashboard';
 import { Setlist }              from './pages/Setlist';
+import { UnifiDashboard }       from './pages/UnifiDashboard';
+import { SettingsPage }         from './pages/SettingsPage';
 import { ConnectionStatus }     from './components/ConnectionStatus';
-
-const TABS = [
-  { id: 'tickets',     label: '🎫 Tickets'   },
-  { id: 'events',      label: '🎵 Events'    },
-  { id: 'projects',    label: '🏗️ Projekte'  },
-  { id: 'maintenance', label: '🔧 Wartung'   },
-  { id: 'setlists',    label: '🎧 Setlists'  },
-  { id: 'templates',   label: '📋 Templates' },
-  { id: 'network',     label: '🌐 Netzwerk'  },
-  { id: 'portfolio',   label: '🗂 Portfolio'  },
-  { id: 'inventory',   label: '📦 Inventar'  },
-  { id: 'sets',        label: '📋 Sets'      },
-  { id: 'quotes',      label: '📄 Angebote'  },
-  { id: 'contacts',    label: '👥 Kontakte'  },
-  { id: 'reports',     label: '📊 Berichte'  }
-];
-
-// Easter egg: tap header logo 7x to open mini-sampler
-let headerTaps = 0;
-let headerTimer = null;
+import { Sidebar }              from './components/Sidebar';
+import { OnboardingModal }      from './components/OnboardingModal';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
-    // Restore last active tab from localStorage
-    return localStorage.getItem('activeTab') || 'tickets';
+    return localStorage.getItem('activeTab') || 'home';
   });
-  const [easterEgg, setEasterEgg] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    // Show onboarding first time only (if 'hasSeenOnboarding' is not set)
+    const hasSeenOnboarding = localStorage.getItem('hasSeenOnboarding');
+    return !hasSeenOnboarding;
+  });
 
-  // Save active tab to localStorage
   useEffect(() => {
     localStorage.setItem('activeTab', activeTab);
   }, [activeTab]);
 
-  function handleLogoClick() {
-    headerTaps++;
-    clearTimeout(headerTimer);
-    headerTimer = setTimeout(() => { headerTaps = 0; }, 2000);
-    if (headerTaps >= 7) {
-      headerTaps = 0;
-      setEasterEgg(true);
-    }
-  }
+  const handleOnboardingClose = () => {
+    setShowOnboarding(false);
+    localStorage.setItem('hasSeenOnboarding', 'true');
+  };
 
   return (
-    <div className="app-layout">
-      <header className="app-header">
-        <div className="logo" onClick={handleLogoClick} style={{ cursor: 'pointer', userSelect: 'none' }}>
-          🖥️ IT Management
-        </div>
-        <nav className="tab-nav">
-          {TABS.map(t => (
-            <button
-              key={t.id}
-              className={`tab-btn${activeTab === t.id ? ' active' : ''}`}
-              onClick={() => setActiveTab(t.id)}
-            >
-              {t.label}
-            </button>
-          ))}
-        </nav>
-        <span className="text-muted text-sm" style={{ minWidth: 160, textAlign: 'right' }}>
-          Persönliches IT-System
-        </span>
-      </header>
-      <main className="app-main">
+    <div className="app-layout-modern">
+      <Sidebar activeTab={activeTab} onNavigate={setActiveTab} />
+      
+      <main className="app-main-modern">
+        {activeTab === 'home'        && <UnifiedDashboard onNavigate={setActiveTab} />}
         {activeTab === 'tickets'     && <Dashboard />}
         {activeTab === 'events'      && <EventsDashboard />}
         {activeTab === 'projects'    && <Projects />}
@@ -95,9 +61,50 @@ export default function App() {
         {activeTab === 'quotes'      && <QuotesPage />}
         {activeTab === 'contacts'    && <ContactsPage />}
         {activeTab === 'reports'     && <ReportsPage />}
+        {activeTab === 'unifi'       && <UnifiDashboard />}
+        {activeTab === 'settings'    && <SettingsPage onShowOnboarding={() => setShowOnboarding(true)} />}
       </main>
 
       <ConnectionStatus />
+      <OnboardingModal isOpen={showOnboarding} onClose={handleOnboardingClose} />
+
+      <style>{`
+        .app-layout-modern {
+          display: flex;
+          height: 100vh;
+          width: 100%;
+        }
+
+        .app-main-modern {
+          flex: 1;
+          marginLeft: 240px;
+          overflowY: auto;
+          overflowX: hidden;
+          transition: margin-left 0.3s ease;
+          background-color: var(--bg-main);
+        }
+
+        /* When sidebar is collapsed (responsive) */
+        @media (max-width: 768px) {
+          .app-main-modern {
+            marginLeft: 80px;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .app-layout-modern {
+            flexDirection: column;
+          }
+
+          .app-main-modern {
+            marginLeft: 0;
+            marginTop: 80px;
+          }
+        }
+      `}</style>
+    </div>
+  );
+}
 
       {/* Easter egg: Mini-Sampler modal (7x logo tap) */}
       {easterEgg && (

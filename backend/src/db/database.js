@@ -223,6 +223,8 @@ function initializeDatabase() {
       rack_position TEXT,             -- e.g. "U12-U14"
       pos_x         REAL DEFAULT 0,   -- canvas X position for topology view
       pos_y         REAL DEFAULT 0,   -- canvas Y position for topology view
+      status        TEXT DEFAULT 'aktiv' CHECK(status IN ('aktiv','inaktiv')),  -- online/offline status
+      unifi_id      TEXT,             -- Unifi controller device ID (NULL if not synced)
       notes         TEXT,
       created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
       updated_at    TEXT    NOT NULL DEFAULT (datetime('now'))
