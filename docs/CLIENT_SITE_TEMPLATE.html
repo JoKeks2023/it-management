@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<!-- docs/CLIENT_SITE_TEMPLATE.html
+     Example of a generated client mini-site.
+     In production, this is generated dynamically by:
+     POST /projects/:id/generate-clientsite
+     and served at: GET /clientsite/:token
+-->
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mein Event – Projekt-Seite</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #111; color: #eee; }
+    header { background: linear-gradient(135deg, #1a1a2e, #16213e); padding: 40px 20px; text-align: center; }
+    header h1 { font-size: 2.2rem; color: #00d4ff; margin-bottom: 8px; }
+    header p { color: #aaa; font-size: 1rem; }
+    .container { max-width: 900px; margin: 0 auto; padding: 30px 20px; }
+    .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 24px 0; }
+    .info-card { background: #1a1a2e; border-radius: 8px; padding: 16px; border: 1px solid #333; }
+    .info-card label { color: #888; font-size: 0.8rem; text-transform: uppercase; }
+    .info-card p { color: #fff; margin-top: 4px; font-size: 1rem; }
+    .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin: 24px 0; }
+    .gallery-item img { width: 100%; border-radius: 6px; object-fit: cover; height: 160px; }
+    .btn { display: inline-block; background: #00d4ff; color: #111; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: bold; margin: 8px 0; }
+    .feedback-form { background: #1a1a2e; border-radius: 8px; padding: 24px; border: 1px solid #333; margin-top: 24px; }
+    .feedback-form h3 { color: #00d4ff; margin-bottom: 16px; }
+    .feedback-form textarea { width: 100%; background: #111; color: #eee; border: 1px solid #333; border-radius: 4px; padding: 10px; height: 100px; }
+    .feedback-form input { width: 100%; background: #111; color: #eee; border: 1px solid #333; border-radius: 4px; padding: 10px; margin-bottom: 12px; }
+    footer { text-align: center; padding: 20px; color: #555; font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🎵 Sommerfestival 2025</h1>
+    <p>DJ Set und technische Betreuung für das Sommerfestival</p>
+  </header>
+  <div class="container">
+    <div class="info-grid">
+      <div class="info-card">
+        <label>Kunde</label>
+        <p>Kulturverein Musterstadt</p>
+      </div>
+      <div class="info-card">
+        <label>Ort</label>
+        <p>Stadtpark Musterstadt</p>
+      </div>
+      <div class="info-card">
+        <label>Datum</label>
+        <p>15. Juli 2025</p>
+      </div>
+      <div class="info-card">
+        <label>Status</label>
+        <p>✅ Abgeschlossen</p>
+      </div>
+    </div>
+
+    <!-- Gallery (populated from project_media) -->
+    <h2>📷 Galerie</h2>
+    <div class="gallery">
+      <div class="gallery-item">
+        <img src="https://placehold.co/400x300/1a1a2e/00d4ff?text=Foto+1" alt="Foto 1" loading="lazy" />
+      </div>
+      <div class="gallery-item">
+        <img src="https://placehold.co/400x300/16213e/00d4ff?text=Foto+2" alt="Foto 2" loading="lazy" />
+      </div>
+      <div class="gallery-item">
+        <img src="https://placehold.co/400x300/0f3460/00d4ff?text=Foto+3" alt="Foto 3" loading="lazy" />
+      </div>
+    </div>
+
+    <!-- Invoice download link (if generated) -->
+    <p><a href="#invoice" class="btn">📄 Rechnung herunterladen</a></p>
+
+    <!-- Feedback form -->
+    <div class="feedback-form">
+      <h3>💬 Feedback & Bewertung</h3>
+      <form id="feedbackForm">
+        <input type="text" id="fbName" placeholder="Ihr Name" />
+        <input type="email" id="fbEmail" placeholder="Ihre E-Mail (optional)" />
+        <textarea id="fbMessage" placeholder="Ihre Nachricht / Bewertung... ⭐⭐⭐⭐⭐"></textarea>
+        <br /><br />
+        <button type="submit" class="btn">Absenden</button>
+      </form>
+      <p id="fbSuccess" style="display:none;color:#0f0;margin-top:12px;">✅ Danke für Ihr Feedback!</p>
+    </div>
+  </div>
+
+  <footer>
+    Erstellt mit IT Management System &bull;
+    <a href="http://localhost:3001" style="color:#555">Backend</a>
+  </footer>
+
+  <script>
+    document.getElementById('feedbackForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      document.getElementById('fbSuccess').style.display = 'block';
+      this.style.display = 'none';
+    });
+  </script>
+</body>
+</html>

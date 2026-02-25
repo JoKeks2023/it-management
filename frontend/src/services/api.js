@@ -449,3 +449,114 @@ export const networkApi = {
       method: 'DELETE'
     }).then(handleResponse)
 };
+// ---------------------------------------------------------------------------
+// Projects
+// ---------------------------------------------------------------------------
+export const projectsApi = {
+  list: (filters = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([k, v]) => { if (v) params.append(k, v); });
+    const query = params.toString() ? `?${params}` : '';
+    return fetch(`${BASE_URL}/projects${query}`).then(handleResponse);
+  },
+  get: (id) => fetch(`${BASE_URL}/projects/${id}`).then(handleResponse),
+  create: (data) => fetch(`${BASE_URL}/projects`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+  }).then(handleResponse),
+  update: (id, data) => fetch(`${BASE_URL}/projects/${id}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+  }).then(handleResponse),
+  delete: (id) => fetch(`${BASE_URL}/projects/${id}`, { method: 'DELETE' }).then(handleResponse),
+  uploadMedia: (id, formData) => fetch(`${BASE_URL}/projects/${id}/media`, {
+    method: 'POST', body: formData
+  }).then(handleResponse),
+  deleteMedia: (id, mediaId) => fetch(`${BASE_URL}/projects/${id}/media/${mediaId}`, {
+    method: 'DELETE'
+  }).then(handleResponse),
+  generateInvoice: (id, data = {}) => fetch(`${BASE_URL}/projects/${id}/generate-invoice`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+  }).then(handleResponse),
+  generateClientsite: (id, data = {}) => fetch(`${BASE_URL}/projects/${id}/generate-clientsite`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+  }).then(handleResponse)
+};
+
+// ---------------------------------------------------------------------------
+// Templates
+// ---------------------------------------------------------------------------
+export const templatesApi = {
+  list: () => fetch(`${BASE_URL}/templates`).then(handleResponse),
+  get: (id) => fetch(`${BASE_URL}/templates/${id}`).then(handleResponse),
+  create: (data) => fetch(`${BASE_URL}/templates`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+  }).then(handleResponse),
+  update: (id, data) => fetch(`${BASE_URL}/templates/${id}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+  }).then(handleResponse),
+  delete: (id) => fetch(`${BASE_URL}/templates/${id}`, { method: 'DELETE' }).then(handleResponse)
+};
+
+// ---------------------------------------------------------------------------
+// Maintenance
+// ---------------------------------------------------------------------------
+export const maintenanceApi = {
+  list: () => fetch(`${BASE_URL}/maintenance`).then(handleResponse),
+  due: () => fetch(`${BASE_URL}/maintenance/due`).then(handleResponse),
+  get: (id) => fetch(`${BASE_URL}/maintenance/${id}`).then(handleResponse),
+  create: (data) => fetch(`${BASE_URL}/maintenance`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+  }).then(handleResponse),
+  update: (id, data) => fetch(`${BASE_URL}/maintenance/${id}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+  }).then(handleResponse),
+  delete: (id) => fetch(`${BASE_URL}/maintenance/${id}`, { method: 'DELETE' }).then(handleResponse),
+  complete: (id, data = {}) => fetch(`${BASE_URL}/maintenance/${id}/complete`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+  }).then(handleResponse),
+  addLog: (id, data) => fetch(`${BASE_URL}/maintenance/${id}/log`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+  }).then(handleResponse)
+};
+
+// ---------------------------------------------------------------------------
+// Light Presets
+// ---------------------------------------------------------------------------
+export const lightpresetsApi = {
+  list: () => fetch(`${BASE_URL}/lightpresets`).then(handleResponse),
+  get: (id) => fetch(`${BASE_URL}/lightpresets/${id}`).then(handleResponse),
+  create: (data) => fetch(`${BASE_URL}/lightpresets`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+  }).then(handleResponse),
+  update: (id, data) => fetch(`${BASE_URL}/lightpresets/${id}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+  }).then(handleResponse),
+  delete: (id) => fetch(`${BASE_URL}/lightpresets/${id}`, { method: 'DELETE' }).then(handleResponse),
+  analyzeAudio: (formData) => fetch(`${BASE_URL}/lightpresets/analyze-audio`, {
+    method: 'POST', body: formData
+  }).then(handleResponse)
+};
+
+// ---------------------------------------------------------------------------
+// Setlists
+// ---------------------------------------------------------------------------
+export const setlistsApi = {
+  list: () => fetch(`${BASE_URL}/setlists`).then(handleResponse),
+  get: (id) => fetch(`${BASE_URL}/setlists/${id}`).then(handleResponse),
+  create: (data) => fetch(`${BASE_URL}/setlists`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+  }).then(handleResponse),
+  update: (id, data) => fetch(`${BASE_URL}/setlists/${id}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+  }).then(handleResponse),
+  delete: (id) => fetch(`${BASE_URL}/setlists/${id}`, { method: 'DELETE' }).then(handleResponse),
+  addTrack: (id, data) => fetch(`${BASE_URL}/setlists/${id}/tracks`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+  }).then(handleResponse),
+  updateTrack: (id, trackId, data) => fetch(`${BASE_URL}/setlists/${id}/tracks/${trackId}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+  }).then(handleResponse),
+  deleteTrack: (id, trackId) => fetch(`${BASE_URL}/setlists/${id}/tracks/${trackId}`, {
+    method: 'DELETE'
+  }).then(handleResponse),
+  exportUrl: (id, format = 'json') => `${BASE_URL}/setlists/${id}/export?format=${format}`
+};

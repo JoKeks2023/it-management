@@ -1208,3 +1208,246 @@ Das Frontend rendert diese Daten mit `@xyflow/react` als interaktiven Graph:
 ---
 
 *Letzte Aktualisierung: 2026*
+
+---
+
+## 14. 🏗️ Projekte-Modul (neu)
+
+### Überblick
+
+Das Projekte-Modul ermöglicht die Verwaltung von Projekten (Events, Installationen, Services) mit Media-Upload, Rechnung-Generierung und Client-Mini-Site.
+
+### Datenbank-Tabellen
+
+| Tabelle | Beschreibung |
+|---------|-------------|
+| `projects` | Kern-Entität mit Status, Client-Info, Preisen |
+| `project_media` | Bilder/Videos/Audio zu einem Projekt |
+| `templates` | Wiederverwendbare Projekt-Templates |
+| `maintenance_jobs` | Wartungsaufgaben für Assets/Equipment |
+| `maintenance_logs` | Service-Log-Einträge |
+| `light_presets` | DMX-Lighting-Presets (JSON) |
+| `setlists` | DJ-/Live-Setlisten |
+| `setlist_tracks` | Einzelne Tracks in einer Setliste |
+| `automations` | Einfache If/Then-Automatisierungsregeln |
+| `badges` | Gamification-Badges |
+| `bingo_cards` | Pannen-Bingo für Events |
+
+### API-Endpunkte
+
+#### Projekte `/projects`
+
+| Method | Endpoint | Beschreibung |
+|--------|----------|-------------|
+| GET    | `/projects` | Alle Projekte (Filter: status, project_type, search) |
+| GET    | `/projects/:id` | Einzelnes Projekt mit Medien |
+| POST   | `/projects` | Neues Projekt erstellen |
+| PUT    | `/projects/:id` | Projekt aktualisieren |
+| DELETE | `/projects/:id` | Projekt löschen |
+| POST   | `/projects/:id/media` | Medien hochladen (multipart, field: `files`) |
+| DELETE | `/projects/:id/media/:mediaId` | Medien-Datei entfernen |
+| POST   | `/projects/:id/generate-invoice` | PDF-Rechnung generieren → Download-URL |
+| POST   | `/projects/:id/generate-clientsite` | Client-Mini-Site HTML generieren → Token-URL |
+| GET    | `/clientsite/:token` | Client-Mini-Site aufrufen |
+
+#### Templates `/templates`
+
+| Method | Endpoint | Beschreibung |
+|--------|----------|-------------|
+| GET    | `/templates` | Alle Templates |
+| GET    | `/templates/:id` | Einzelnes Template |
+| POST   | `/templates` | Template erstellen |
+| PUT    | `/templates/:id` | Template aktualisieren |
+| DELETE | `/templates/:id` | Template löschen |
+
+#### Wartung `/maintenance`
+
+| Method | Endpoint | Beschreibung |
+|--------|----------|-------------|
+| GET    | `/maintenance` | Alle Wartungs-Jobs |
+| GET    | `/maintenance/due` | Fällige/überfällige Jobs |
+| POST   | `/maintenance` | Job erstellen |
+| PUT    | `/maintenance/:id` | Job aktualisieren |
+| DELETE | `/maintenance/:id` | Job löschen |
+| POST   | `/maintenance/:id/log` | Service-Log-Eintrag hinzufügen |
+| POST   | `/maintenance/:id/complete` | Job als erledigt markieren, next_service vorrücken |
+
+#### Setlists `/setlists`
+
+| Method | Endpoint | Beschreibung |
+|--------|----------|-------------|
+| GET    | `/setlists` | Alle Setlisten |
+| GET    | `/setlists/:id` | Einzelne Setliste mit Tracks |
+| POST   | `/setlists` | Setliste erstellen (inkl. Tracks) |
+| PUT    | `/setlists/:id` | Setliste-Metadaten aktualisieren |
+| DELETE | `/setlists/:id` | Setliste löschen |
+| POST   | `/setlists/:id/tracks` | Track hinzufügen |
+| PUT    | `/setlists/:id/tracks/:trackId` | Track aktualisieren |
+| DELETE | `/setlists/:id/tracks/:trackId` | Track entfernen |
+| GET    | `/setlists/:id/export?format=json\|csv` | Export für Rekordbox/Traktor (JSON) oder Ableton (CSV) |
+
+#### Light Presets `/lightpresets`
+
+| Method | Endpoint | Beschreibung |
+|--------|----------|-------------|
+| GET    | `/lightpresets` | Alle Presets |
+| GET    | `/lightpresets/:id` | Einzelnes Preset |
+| POST   | `/lightpresets` | Preset erstellen |
+| PUT    | `/lightpresets/:id` | Preset aktualisieren |
+| DELETE | `/lightpresets/:id` | Preset löschen |
+| POST   | `/lightpresets/analyze-audio` | Audio hochladen → DMX-JSON (POC) |
+
+### Cron-Job: Wartungs-Check
+
+Der Cron-Job (`backend/src/cron/maintenanceCron.js`) läuft täglich um 08:00 Uhr und:
+1. Findet alle Jobs mit `next_service <= today`
+2. Aktualisiert Status auf `due`/`overdue`
+3. Erstellt automatisch ein Ticket im Tickets-System
+4. Sendet (optional) eine E-Mail-Benachrichtigung
+
+**Konfiguration via Env-Variablen:**
+```
+MAINTENANCE_CRON=0 8 * * *   # Cron-Ausdruck (Standard: täglich 08:00)
+MAIL_HOST=smtp.example.com    # Optional: SMTP für E-Mail
+MAIL_PORT=587
+MAIL_USER=user@example.com
+MAIL_PASS=geheimespasswort
+MAIL_TO=admin@example.com
+MAIL_FROM=noreply@example.com
+```
+
+### Seed-Daten einspielen
+
+```bash
+cd backend
+npm run seed
+# oder:
+node scripts/seed-db.js
+```
+
+Erstellt: 2 Templates, 3 Projekte, 5 Wartungs-Jobs, 2 Events, 2 Light Presets, 2 Setlists, 5 Badges, 2 Automations.
+
+---
+
+## 15. 🔧 Wartungs-Scheduler (Cron)
+
+### Manueller Test
+
+```bash
+node -e "
+  process.env.DB_PATH = './data/tickets.db';
+  const { runMaintenanceCheck } = require('./src/cron/maintenanceCron');
+  const result = runMaintenanceCheck();
+  console.log('Processed:', result.length, 'jobs');
+"
+```
+
+### Systemd Service für Raspberry Pi
+
+```ini
+[Unit]
+Description=IT Management Backend
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/it-management/backend
+ExecStart=/usr/bin/node src/server.js
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+EnvironmentFile=/home/pi/it-management/backend/.env
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Speichern unter `/etc/systemd/system/it-management.service`, dann:
+```bash
+sudo systemctl enable it-management
+sudo systemctl start it-management
+```
+
+---
+
+## 16. 🎵 Light Show Generator (POC)
+
+### DMX-JSON Format
+
+```json
+{
+  "duration_ms": 8000,
+  "fps": 20,
+  "channels": [
+    { "channel": 1, "label": "Strobe",      "values": [0, 255, 0, ...] },
+    { "channel": 2, "label": "Bass Lights", "values": [100, 200, ...] },
+    { "channel": 3, "label": "Red",         "values": [50, 150, ...] },
+    { "channel": 4, "label": "Green",       "values": [30, 120, ...] },
+    { "channel": 5, "label": "Blue",        "values": [80, 200, ...] }
+  ]
+}
+```
+
+### Audio-Analyse API
+
+```http
+POST /lightpresets/analyze-audio
+Content-Type: multipart/form-data
+Field: audio (Audiodatei, max 30s, beliebiges Format)
+
+Response: DMX-JSON (s.o.)
+```
+
+---
+
+## 17. 🌐 Client-Mini-Site
+
+### Generierung
+
+```http
+POST /projects/:id/generate-clientsite
+Response: { success: true, token: "uuid", url: "http://host/clientsite/token" }
+```
+
+### Anzeige
+
+```http
+GET /clientsite/:token
+Response: Statisches HTML mit Galerie, Event-Info, Feedback-Formular
+```
+
+### Features
+- Responsive Dark-Mode Design
+- Bildgalerie aus Project-Media
+- Optionaler Invoice-Download-Link
+- Feedback-Formular (Frontend-Only)
+- One-Click Share (Link in Zwischenablage)
+
+---
+
+## 18. 📱 PWA-Support
+
+Das Frontend ist als Progressive Web App konfiguriert:
+- `public/manifest.json` – App-Metadaten für Installation
+- `public/sw.js` – Service Worker für Offline-Unterstützung
+- Cache-Strategie: Network-First für API, Cache-First für statische Assets
+- Offline verfügbar: Projekte, Tickets, Events (gecacht nach erstem Laden)
+
+---
+
+## 19. 🎮 Gamification & Easter Eggs
+
+### Badges
+Automatische Vergabe-Logik in der `badges`-Tabelle mit JSON-Kriterien:
+```json
+{"type": "tickets_completed", "threshold": 50}
+```
+
+### Pannen-Bingo
+Zufällige Auswahl von 5 häufigen Problemen pro Event. Per Klick als gelöst markieren.
+
+### Easter Egg
+Logo im Header **7x schnell klicken** → Mini-Sampler öffnet sich 🎹
+
+*Letzte Aktualisierung: 2026-02*

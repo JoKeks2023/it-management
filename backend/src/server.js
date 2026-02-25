@@ -8,16 +8,21 @@ const cors = require('cors');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
 
-const ticketRoutes    = require('./routes/tickets');
-const assetRoutes     = require('./routes/assets');
-const eventRoutes     = require('./routes/events');
-const networkRoutes   = require('./routes/network');
-const portfolioRoutes = require('./routes/portfolio');
-const contactRoutes   = require('./routes/contacts');
-const inventoryRoutes = require('./routes/inventory');
-const quotesRoutes    = require('./routes/quotes');
-const setsRoutes      = require('./routes/sets');
-const reportsRoutes   = require('./routes/reports');
+const ticketRoutes      = require('./routes/tickets');
+const assetRoutes       = require('./routes/assets');
+const eventRoutes       = require('./routes/events');
+const networkRoutes     = require('./routes/network');
+const portfolioRoutes   = require('./routes/portfolio');
+const contactRoutes     = require('./routes/contacts');
+const inventoryRoutes   = require('./routes/inventory');
+const quotesRoutes      = require('./routes/quotes');
+const setsRoutes        = require('./routes/sets');
+const reportsRoutes     = require('./routes/reports');
+const projectsRoutes    = require('./routes/projects');
+const templatesRoutes   = require('./routes/templates');
+const maintenanceRoutes = require('./routes/maintenance');
+const lightpresetsRoutes = require('./routes/lightpresets');
+const setlistsRoutes    = require('./routes/setlists');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -66,16 +71,21 @@ const uploadLimiter = rateLimit({
   message: { error: 'Too many upload requests, please try again later.' }
 });
 
-app.use('/tickets',   apiLimiter);
-app.use('/assets',    apiLimiter);
-app.use('/events',    apiLimiter);
-app.use('/network',   apiLimiter);
-app.use('/portfolio', apiLimiter);
-app.use('/contacts',  apiLimiter);
-app.use('/inventory', apiLimiter);
-app.use('/quotes',    apiLimiter);
-app.use('/sets',      apiLimiter);
-app.use('/reports',   apiLimiter);
+app.use('/tickets',      apiLimiter);
+app.use('/assets',       apiLimiter);
+app.use('/events',       apiLimiter);
+app.use('/network',      apiLimiter);
+app.use('/portfolio',    apiLimiter);
+app.use('/contacts',     apiLimiter);
+app.use('/inventory',    apiLimiter);
+app.use('/quotes',       apiLimiter);
+app.use('/sets',         apiLimiter);
+app.use('/reports',      apiLimiter);
+app.use('/projects',     apiLimiter);
+app.use('/templates',    apiLimiter);
+app.use('/maintenance',  apiLimiter);
+app.use('/lightpresets', apiLimiter);
+app.use('/setlists',     apiLimiter);
 
 app.use('/tickets/:id/attachments', uploadLimiter);
 app.use('/events/:id/attachments',  uploadLimiter);
@@ -91,18 +101,50 @@ app.use('/uploads', express.static(uploadDir));
 // ---------------------------------------------------------------------------
 // Routes
 // ---------------------------------------------------------------------------
-app.use('/tickets',   ticketRoutes);
-app.use('/assets',    assetRoutes);
-app.use('/events',    eventRoutes);
-app.use('/network',   networkRoutes);
-app.use('/portfolio', portfolioRoutes);
-app.use('/contacts',  contactRoutes);
-app.use('/inventory', inventoryRoutes);
-app.use('/quotes',    quotesRoutes);
-app.use('/sets',      setsRoutes);
-app.use('/reports',   reportsRoutes);
+app.use('/tickets',      ticketRoutes);
+app.use('/assets',       assetRoutes);
+app.use('/events',       eventRoutes);
+app.use('/network',      networkRoutes);
+app.use('/portfolio',    portfolioRoutes);
+app.use('/contacts',     contactRoutes);
+app.use('/inventory',    inventoryRoutes);
+app.use('/quotes',       quotesRoutes);
+app.use('/sets',         setsRoutes);
+app.use('/reports',      reportsRoutes);
+app.use('/projects',     projectsRoutes);
+app.use('/templates',    templatesRoutes);
+app.use('/maintenance',  maintenanceRoutes);
+app.use('/lightpresets', lightpresetsRoutes);
+app.use('/setlists',     setlistsRoutes);
 
-// Health-check endpoint
+// ---------------------------------------------------------------------------
+// Client mini-site endpoint  GET /clientsite/:token
+// ---------------------------------------------------------------------------
+app.get('/clientsite/:token', (req, res) => {
+  const db = require('./db/database');
+  const fs = require('fs');
+  try {
+    const project = db.prepare(
+      'SELECT * FROM projects WHERE clientsite_token = ?'
+    ).get(req.params.token);
+
+    if (!project || !project.clientsite_path) {
+      return res.status(404).send('<h1>Page not found</h1>');
+    }
+
+    const csDir = path.join(uploadDir, 'clientsites');
+    const htmlPath = path.join(csDir, project.clientsite_path);
+
+    if (!fs.existsSync(htmlPath)) {
+      return res.status(404).send('<h1>Page not found</h1>');
+    }
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(fs.readFileSync(htmlPath, 'utf8'));
+  } catch (err) {
+    res.status(500).send('<h1>Server error</h1>');
+  }
+});
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
@@ -133,6 +175,10 @@ if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`IT Management Backend running on http://localhost:${PORT}`);
     console.log(`Shelf API: ${process.env.SHELF_API_TOKEN ? 'configured' : 'NOT configured (set SHELF_API_TOKEN)'}`);
+
+    // Start maintenance cron job
+    const { startMaintenanceCron } = require('./cron/maintenanceCron');
+    startMaintenanceCron();
   });
 }
 
